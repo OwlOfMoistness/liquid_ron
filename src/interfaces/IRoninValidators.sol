@@ -15,21 +15,9 @@ interface IRoninValidator {
 	function claimRewards(address[] calldata) external;
 	function delegateRewards(address[] calldata,address consensusAddrDst) external returns (uint256 amount);
 	function getRewards(address user,address[] calldata) external view returns (uint256[] memory);
+	function getReward(address user,address) external view returns (uint256);
 	function getStakingTotal(address consensusAddr) external view returns (uint256);
 	function getManyStakingTotals(address[] calldata consensusAddrs) external view returns (uint256[] memory);
 	function getStakingAmount(address consensusAddr, address user) external view returns (uint256);
 	function getManyStakingAmounts(address[] calldata consensusAddrs,address[] calldata userList) external view returns (uint256[] memory);
-}
-
-interface IValidatorSet {
-	struct ValidatorCandidate {
-    address __shadowedAdmin;
-    address __shadowedConsensus;
-    address payable __shadowedTreasury;
-    address ____deprecatedBridgeOperatorAddr;
-    uint256 commissionRate;
-    uint256 revokingTimestamp;
-    uint256 topupDeadline;
-	}
-	function getCandidateInfos() external view returns (ValidatorCandidate[] memory list);
 }

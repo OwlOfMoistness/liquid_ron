@@ -104,6 +104,13 @@ contract MockRonStaking is IRoninValidator {
 		return rewards;
 	}
 
+	function getReward(address _user,address _consensusAddr) external view returns (uint256) {
+		uint256 timePassed = block.timestamp - lastAction[_consensusAddr][_user];
+		uint256 stakingAmount = stakingAmounts[_consensusAddr][_user];
+		uint256 reward = stakingAmount * RATE_PER_SECOND * timePassed / 1e18;
+		return reward + pendingRewards[_consensusAddr][_user];
+	}
+
 	function getStakingTotal(address _consensusAddr) external view returns (uint256) {
 		return totalStakingAmounts[_consensusAddr];
 	}

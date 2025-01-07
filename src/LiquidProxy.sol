@@ -14,13 +14,11 @@ import "./RonHelper.sol";
 contract LiquidProxy is RonHelper, ILiquidProxy {
 	address public vault;
 	address public roninStaking;
-	address public validatorSet;
 
-	constructor(address _roninStaking, address _validatorSet, address _wron)
+	constructor(address _roninStaking, address _wron)
 	RonHelper(_wron) {
 		vault = msg.sender;
 		roninStaking = _roninStaking;
-		validatorSet = _validatorSet;
 	}
 
 	modifier onlyVault() {

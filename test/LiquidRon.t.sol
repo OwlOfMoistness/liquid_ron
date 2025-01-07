@@ -5,14 +5,12 @@ pragma solidity ^0.8.17;
 import {Test, console} from "forge-std/Test.sol";
 import {LiquidRon, WithdrawalStatus, Pausable} from "../src/LiquidRon.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
-import {ValidatorSet} from "../src/mock/ValidatorSet.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
 	WrappedRon public wrappedRon;
-	ValidatorSet public validatorSet;
 	MockRonStaking public mockRonStaking;
 
 	address[] public consensusAddrs = [
@@ -26,14 +24,8 @@ contract LiquidRonTest is Test {
 	function setUp() public {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
-		validatorSet = new ValidatorSet();
-		validatorSet.addValidator(0xF000000000000000000000000000000000000001);
-		validatorSet.addValidator(0xf000000000000000000000000000000000000002);
-		validatorSet.addValidator(0xf000000000000000000000000000000000000003);
-		validatorSet.addValidator(0xF000000000000000000000000000000000000004);
-		validatorSet.addValidator(0xf000000000000000000000000000000000000005);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(validatorSet), address(wrappedRon));
+		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon));
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
