@@ -313,8 +313,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	receive() external payable {
 		if (msg.sender != roninStaking && msg.sender != asset()) {
-			_depositRON(msg.value);
-			this.deposit(msg.value, msg.sender);
+			_depositRONTo(escrow, msg.value);
+			Escrow(escrow).deposit(msg.value, msg.sender);
 		}
 	}
 }
