@@ -14,23 +14,15 @@ interface IWRON {
 }
 
 abstract contract RonHelper {
-	address public wron;
+	address wron;
 
 	constructor(address _wron) {
 		wron = _wron;
 	}
 
-	function _depositRON(uint256 amount) internal {
-		IWRON(wron).deposit{value: amount}();
-	}
-
 	function _depositRONTo(address to, uint256 amount) internal {
 		IWRON(wron).deposit{value: amount}();
 		IWRON(wron).transfer(to, amount);
-	}
-
-	function _withdrawRON(uint256 amount) internal {
-		IWRON(wron).withdraw(amount);
 	}
 
 	function _withdrawRONTo(address to, uint256 amount) internal {
