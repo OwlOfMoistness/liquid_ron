@@ -104,7 +104,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	function fetchOperatorFee() external onlyOwner {
 		uint256 amount = operatorFeeAmount;
 		operatorFeeAmount = 0;
-		IERC20(asset()).transfer(owner(), amount);
+		_withdrawRONTo(owner(), amount);
 	}
 
 	///////////////////////////////

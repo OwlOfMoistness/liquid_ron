@@ -57,6 +57,17 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 	}
 
+	function test_revert_delegate_bad_proxy(uint88 _amount) public {
+		vm.assume(_amount >= 0.01 ether);
+		liquidRon.deposit{value:_amount}();
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = 0;
+		}
+		vm.expectRevert(LiquidRon.ErrBadProxy.selector);
+		liquidRon.delegateAmount(4, amounts, consensusAddrs);
+	}
+
 	function test_revert_insufficient_delegate(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
 		uint256 delegateAmount = _amount / 17;
@@ -205,7 +216,6 @@ contract LiquidRonTest is Test {
 		liquidRon.redelegateAmount(0, ams, srcs, dsts);
 	}
 
-
 	function test_revert_undelegate(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
 		liquidRon.deposit{value:_amount}();
@@ -262,7 +272,7 @@ contract LiquidRonTest is Test {
 		assertTrue(status == WithdrawalStatus.INITIATED);
 	}
 
-	function test_revert_finalise_withdraw_process_operator() public {
+	function test_revert_operator_start_withdraw_process() public {
 		uint256 amount = 10000 ether;
 		liquidRon.deposit{value:amount}();
 		uint256 delegateAmount = amount / 5;
@@ -276,7 +286,22 @@ contract LiquidRonTest is Test {
 		liquidRon.initiateWithdrawalEpoch();
 		WithdrawalStatus status = liquidRon.statusPerEpoch(liquidRon.withdrawalEpoch());
 		assertTrue(status == WithdrawalStatus.INITIATED);
-		vm.expectRevert("ERC20: transfer amount exceeds balance");
+		vm.expectRevert(LiquidRon.ErrWithdrawalEpochAlreadyEngaged.selector);
+		liquidRon.initiateWithdrawalEpoch();
+	}
+
+	function test_revert_finalise_withdraw_process_operator() public {
+		uint256 amount = 10000 ether;
+		liquidRon.deposit{value:amount}();
+		uint256 delegateAmount = amount / 5;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.delegateAmount(0, amounts, consensusAddrs);
+		skip(86400 * 365 + 1);
+		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2);
+		vm.expectRevert(LiquidRon.ErrWithdrawalEpochNotInitiated.selector);
 		liquidRon.finaliseRonRewardsForEpoch();
 	}
 
@@ -359,6 +384,12 @@ contract LiquidRonTest is Test {
 		exp[2] = consensusAddrs[2];
 		exp[3] = consensusAddrs[3];
 		assertEq(liquidRon.getValidators(), exp);
+	}
+
+	function test_revert_only_operator() public {
+		vm.expectRevert(LiquidRon.ErrInvalidOperator.selector);
+		vm.prank(consensusAddrs[0]);
+		liquidRon.harvest(0, consensusAddrs);
 	}
 
 	receive() external payable {}

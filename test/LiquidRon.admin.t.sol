@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 
 import {Test, console} from "forge-std/Test.sol";
 import {LiquidRon, WithdrawalStatus, Pausable} from "../src/LiquidRon.sol";
+import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
@@ -30,6 +31,14 @@ contract LiquidRonTest is Test {
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 	}
+
+	function test_revert_proxy_calls_not_vault() public {
+		vm.prank(consensusAddrs[1]);
+		address proxy = liquidRon.stakingProxies(0);
+		vm.expectRevert("LiquidProxy: not vault");
+		LiquidProxy(payable(proxy)).harvest(consensusAddrs);
+	}
+
 	function test_admin_pause() public {
 		liquidRon.pause();
 		assertTrue(liquidRon.paused());
@@ -90,6 +99,56 @@ contract LiquidRonTest is Test {
 		uint256 proxyCount = liquidRon.stakingProxyCount();
 		liquidRon.deployStakingProxy();
 		assertEq(liquidRon.stakingProxyCount(), proxyCount + 1);
+	}
+
+	function test_admin_fetch_operator_fee(uint88 _amount) public {
+		vm.assume(_amount >= 0.01 ether);
+		liquidRon.deposit{value:_amount}();
+		uint256 delegateAmount = _amount / 15;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.delegateAmount(0, amounts, consensusAddrs);
+		liquidRon.delegateAmount(1, amounts, consensusAddrs);
+		liquidRon.delegateAmount(2, amounts, consensusAddrs);
+		uint256 total =  liquidRon.totalAssets();
+		skip(86400 * 365);
+		liquidRon.harvest(0, consensusAddrs);
+		liquidRon.harvest(1, consensusAddrs);
+		liquidRon.harvest(2, consensusAddrs);
+		uint256 newTotal =  liquidRon.totalAssets();
+		uint256 expectedYield = uint256(_amount) * 12 / 100;
+		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		uint256 operatorFee = liquidRon.operatorFeeAmount();
+		uint256 pre = address(this).balance;
+		liquidRon.fetchOperatorFee();
+		assertEq(address(this).balance, pre + operatorFee);
+	}
+
+	function test_revert_fetch_fee_non_receiver(uint88 _amount) public {
+		vm.assume(_amount >= 0.01 ether);
+		liquidRon.deposit{value:_amount}();
+		uint256 delegateAmount = _amount / 15;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.delegateAmount(0, amounts, consensusAddrs);
+		liquidRon.delegateAmount(1, amounts, consensusAddrs);
+		liquidRon.delegateAmount(2, amounts, consensusAddrs);
+		uint256 total =  liquidRon.totalAssets();
+		skip(86400 * 365);
+		liquidRon.harvest(0, consensusAddrs);
+		liquidRon.harvest(1, consensusAddrs);
+		liquidRon.harvest(2, consensusAddrs);
+		uint256 newTotal =  liquidRon.totalAssets();
+		uint256 expectedYield = uint256(_amount) * 12 / 100;
+		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		liquidRon.transferOwnership(address(wrappedRon));
+		vm.prank(address(wrappedRon));
+		vm.expectRevert("RonHelper: withdraw failed");
+		liquidRon.fetchOperatorFee();
 	}
 
 	receive() external payable {}
