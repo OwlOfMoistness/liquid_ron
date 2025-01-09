@@ -50,7 +50,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		uint256 assetSupply;
 	}
 
-	uint256 constant BIPS = 10_000;
+	uint256 constant public BIPS = 10_000;
 
 	mapping(uint256 => LockedPricePerShare) public 						lockedPricePerSharePerEpoch;
 	mapping(uint256 => mapping(address => WithdrawalRequest)) public	withdrawalRequestsPerEpoch;
@@ -76,14 +76,14 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
 
-	constructor(address _roninStaking, address _wron)
+	constructor(address _roninStaking, address _wron, uint256 _operatorFee)
 	ERC4626(IERC20(_wron))
 	ERC20("Liquid Ronin ", "lRON")
 	RonHelper(_wron) {
 		roninStaking = _roninStaking;
 		IERC20(_wron).approve(address(this), type(uint256).max);
 		escrow = address(new Escrow(_wron));
-		operatorFee = 250;
+		operatorFee = _operatorFee;
 	}
 
 	/// @dev Modifier to restrict access of a function to an operator or owner
@@ -136,9 +136,16 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// @param _proxyIndex The index of the staking proxy to harvest from
 	/// @param _consensusAddrs The consensus addresses to claim tokens from
 	/// @param _consensusAddrDst The consensus address to delegate the rewards to
-	function harvestAndDelegateRewards(uint256 _proxyIndex, address[] calldata _consensusAddrs, address _consensusAddrDst) external onlyOperator whenNotPaused {
+	function harvestAndDelegateRewards(
+		uint256 _proxyIndex,
+		address[] calldata _consensusAddrs,
+		address _consensusAddrDst
+	)
+		external onlyOperator whenNotPaused
+	{
 		_tryPushValidator(_consensusAddrDst);
-		uint256 harvestedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).harvestAndDelegateRewards(_consensusAddrs, _consensusAddrDst);
+		uint256 harvestedAmount =
+			ILiquidProxy(stakingProxies[_proxyIndex]).harvestAndDelegateRewards(_consensusAddrs, _consensusAddrDst);
 		operatorFeeAmount += harvestedAmount * operatorFee / BIPS;
 		emit Harvest(_proxyIndex, harvestedAmount);
 	}
@@ -147,7 +154,12 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// @param _proxyIndex The index of the staking proxy to delegate from
 	/// @param _amounts The amounts of RON tokens to delegate
 	/// @param _consensusAddrs The consensus addresses to delegate to
-	function delegateAmount(uint256 _proxyIndex, uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyOperator whenNotPaused {
+	function delegateAmount(
+		uint256 _proxyIndex,
+		uint256[] calldata _amounts,
+		address[] calldata _consensusAddrs
+	)
+		external onlyOperator whenNotPaused {
 		address stakingProxy = stakingProxies[_proxyIndex];
 		uint256 total;
 		
@@ -166,7 +178,14 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// @param _amounts The amounts of RON tokens to redelegate
 	/// @param _consensusAddrsSrc The consensus addresses to redelegate from
 	/// @param _consensusAddrsDst The consensus addresses to redelegate to
-	function redelegateAmount(uint256 _proxyIndex, uint256[] calldata _amounts, address[] calldata _consensusAddrsSrc, address[] calldata _consensusAddrsDst) external onlyOperator whenNotPaused {
+	function redelegateAmount(
+		uint256 _proxyIndex,
+		uint256[] calldata _amounts,
+		address[] calldata _consensusAddrsSrc,
+		address[] calldata _consensusAddrsDst
+	)
+		external onlyOperator whenNotPaused
+	{
 		ILiquidProxy(stakingProxies[_proxyIndex]).redelegateAmount(_amounts, _consensusAddrsSrc, _consensusAddrsDst);
 	
 		for (uint256 i = 0; i < _consensusAddrsSrc.length; i++) {
@@ -179,7 +198,13 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// @param _proxyIndex The index of the staking proxy to undelegate from
 	/// @param _amounts The amounts of RON tokens to undelegate
 	/// @param _consensusAddrs The consensus addresses to undelegate from
-	function undelegateAmount(uint256 _proxyIndex, uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyOperator whenNotPaused {
+	function undelegateAmount(
+		uint256 _proxyIndex,
+		uint256[] calldata _amounts,
+		address[] calldata _consensusAddrs
+	) 
+		external onlyOperator whenNotPaused
+	{
 		ILiquidProxy(stakingProxies[_proxyIndex]).undelegateAmount(_amounts, _consensusAddrs);
 	}
 
@@ -270,7 +295,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	/// @dev Gets the total amount of assets the vault controls
 	function totalAssets() public view override returns (uint256) {
-		return super.totalAssets() + getTotalStaked() + getTotalRewards();
+		return super.totalAssets() + getTotalStaked() + getTotalRewards() - operatorFeeAmount;
 	}
 
 	//////////////////////

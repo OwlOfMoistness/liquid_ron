@@ -26,7 +26,7 @@ contract LiquidRonTest is Test {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon));
+		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 250);
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
@@ -119,7 +119,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
-		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 		uint256 operatorFee = liquidRon.operatorFeeAmount();
 		uint256 pre = address(this).balance;
 		liquidRon.fetchOperatorFee();
@@ -144,7 +145,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
-		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 		liquidRon.transferOwnership(address(wrappedRon));
 		vm.prank(address(wrappedRon));
 		vm.expectRevert("RonHelper: withdraw failed");

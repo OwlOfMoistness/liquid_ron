@@ -25,7 +25,7 @@ contract LiquidRonTest is Test {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon));
+		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 0);
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();

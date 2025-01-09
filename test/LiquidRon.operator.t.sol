@@ -25,7 +25,7 @@ contract LiquidRonTest is Test {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon));
+		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 250);
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
@@ -96,7 +96,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
-		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 	}
 
 	function test_harvest_duration(uint88 _duration) public {
@@ -118,7 +119,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * uint256(_duration) * 12 / 100 / 365 / 86400;
-		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 	}
 
 	function test_harvest_and_delegate(uint88 _amount) public {
@@ -139,7 +141,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvestAndDelegateRewards(2, consensusAddrs, consensusAddrs[2]);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
-		assertTrue(newTotal - total >= expectedYield);
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		assertTrue(newTotal - total >= expectedYield - expectedFee);
 		uint256 c0 = mockRonStaking.stakingAmounts(consensusAddrs[0], liquidRon.stakingProxies(0));
 		uint256 c3 = mockRonStaking.stakingAmounts(consensusAddrs[3], liquidRon.stakingProxies(0));
 		assertTrue(c0 > c3);

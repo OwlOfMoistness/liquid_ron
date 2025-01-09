@@ -46,7 +46,12 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
 	/// @param _consensusAddrs The consensus addresses to harvest rewards from
 	/// @param _consensusAddrDst The consensus address to delegate the rewards to
 	/// @return claimableAmount The amount of RON claimed from the staking contract
-	function harvestAndDelegateRewards(address[] calldata _consensusAddrs, address _consensusAddrDst) external onlyVault returns(uint256) {
+	function harvestAndDelegateRewards(
+		address[] calldata _consensusAddrs,
+		address _consensusAddrDst
+	)
+		external onlyVault returns(uint256)
+	{
 		uint256 claimableAmount = IRoninValidator(roninStaking).delegateRewards(_consensusAddrs, _consensusAddrDst);
 		return claimableAmount;
 	}
@@ -64,7 +69,13 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
 	/// @param _amounts The amounts to redelegate
 	/// @param _consensusAddrsSrc The consensus addresses to redelegate from
 	/// @param _consensusAddrsDst The consensus addresses to redelegate to
-	function redelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrsSrc, address[] calldata _consensusAddrsDst) external onlyVault {
+	function redelegateAmount(
+		uint256[] calldata _amounts,
+		address[] calldata _consensusAddrsSrc,
+		address[] calldata _consensusAddrsDst
+	)
+		external onlyVault
+	{
 		for (uint256 i = 0; i < _amounts.length; i++) {
 			IRoninValidator(roninStaking).redelegate(_consensusAddrsSrc[i], _consensusAddrsDst[i], _amounts[i]);
 		}
