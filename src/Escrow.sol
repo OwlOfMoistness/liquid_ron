@@ -8,14 +8,24 @@ pragma solidity ^0.8.17;
  */
 
 import "@openzeppelin/token/ERC20/IERC20.sol";
-import "./LiquidRon.sol";
 
+interface IVault {
+	function deposit(uint256 _amount, address _receiver) external payable;
+}
+
+/// @title Escrow contract used to store RON tokens from the vault to prevent total assets miscalculations
+/// @author OwlOfMoistness
 contract Escrow {
 	constructor(address _token) {
 		IERC20(_token).approve(msg.sender, type(uint256).max);
 	}
 
+	/// @dev Deposit RON tokens to the vault.
+	///      The reason we do it here is to prevent total assets miscalculations
+	///      in the vault and send the wrong amount of shares to the receiver.
+	/// @param _amount The amount of RON to deposit
+	/// @param _receiver The receiver of the RON tokens
 	function deposit(uint256 _amount, address _receiver) external {
-		LiquidRon(payable(msg.sender)).deposit( _amount, _receiver);
+		IVault(payable(msg.sender)).deposit( _amount, _receiver);
 	}
 }
