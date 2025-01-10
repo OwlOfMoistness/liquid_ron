@@ -8,6 +8,7 @@ import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
+import {Escrow} from "../src/Escrow.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
@@ -151,6 +152,14 @@ contract LiquidRonTest is Test {
 		vm.prank(address(wrappedRon));
 		vm.expectRevert("RonHelper: withdraw failed");
 		liquidRon.fetchOperatorFee();
+	}
+
+	function test_revert_escrow_not_vault(address _user) public {
+		vm.assume(_user != address(liquidRon));
+		Escrow e = Escrow(liquidRon.escrow());
+		vm.expectRevert(Escrow.ErrNotVault.selector);
+		vm.prank(_user);
+		e.deposit(1000 ether, _user);
 	}
 
 	receive() external payable {}

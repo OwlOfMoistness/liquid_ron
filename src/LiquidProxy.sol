@@ -7,9 +7,9 @@ pragma solidity ^0.8.17;
  *    -"-"-
  */
 
-import "./interfaces/IRoninValidators.sol";
-import "./interfaces/ILiquidProxy.sol";
-import "./RonHelper.sol";
+import {IRoninValidator} from "./interfaces/IRoninValidators.sol";
+import {ILiquidProxy} from "./interfaces/ILiquidProxy.sol";
+import {RonHelper} from "./RonHelper.sol";
 
 /// @title A proxy contract deployed by the LiquidRon vault.
 /// 	   It allows to granulate staking amounts to reduce reward waste by movings assets around

@@ -16,7 +16,12 @@ interface IVault {
 /// @title Escrow contract used to store RON tokens from the vault to prevent total assets miscalculations
 /// @author OwlOfMoistness
 contract Escrow {
+	error ErrNotVault();
+
+	address _vault;
+
 	constructor(address _token) {
+		_vault = msg.sender;
 		IERC20(_token).approve(msg.sender, type(uint256).max);
 	}
 
@@ -26,6 +31,7 @@ contract Escrow {
 	/// @param _amount The amount of RON to deposit
 	/// @param _receiver The receiver of the RON tokens
 	function deposit(uint256 _amount, address _receiver) external {
+		if (msg.sender != _vault) revert ErrNotVault();
 		IVault(payable(msg.sender)).deposit( _amount, _receiver);
 	}
 }
