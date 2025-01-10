@@ -9,6 +9,8 @@ import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {Escrow} from "../src/Escrow.sol";
+import {UpgradeableBeacon} from "@openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
@@ -27,7 +29,18 @@ contract LiquidRonTest is Test {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 250);
+		LiquidRon impl = new LiquidRon();
+		LiquidProxy proxyImpl = new LiquidProxy();
+		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl));
+		bytes memory data = abi.encodeWithSignature(
+			"initialize(address,address,uint256,address)",
+			address(mockRonStaking),
+			address(wrappedRon),
+			250,
+			address(beacon)
+		);
+		TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(address(impl), address(impl), data);
+		liquidRon = LiquidRon(payable(proxy));
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();

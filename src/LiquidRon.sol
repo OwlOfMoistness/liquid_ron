@@ -9,9 +9,10 @@ pragma solidity ^0.8.17;
 
 import {IRoninValidator} from "./interfaces/IRoninValidators.sol";
 import {ILiquidProxy} from "./interfaces/ILiquidProxy.sol";
-import "@openzeppelin/token/ERC20/extensions/ERC4626.sol";
-import "@openzeppelin/token/ERC20/IERC20.sol";
-import "@openzeppelin/utils/math/Math.sol";
+import "@openzeppelinups/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import "@openzeppelinups/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelinups/utils/math/MathUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/proxy/beacon/BeaconProxy.sol";
 import {Pausable} from "./Pausable.sol";
 import {RonHelper} from "./RonHelper.sol";
 import {Escrow} from "./Escrow.sol";
@@ -26,8 +27,8 @@ enum WithdrawalStatus {
 
 /// @title A contract to manage the staking and withdrawal of RON tokens in exchange of an interest bearing token
 /// @author OwlOfMoistness 
-contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
-	using Math for uint256;
+contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker {
+	using MathUpgradeable for uint256;
 
 	error ErrRequestFulfilled();
 	error ErrWithdrawalProcessInitiated();
@@ -52,6 +53,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	uint256 constant public BIPS = 10_000;
 
+	mapping(address => bool) public operator;
 	mapping(uint256 => LockedPricePerShare) public 						lockedPricePerSharePerEpoch;
 	mapping(uint256 => mapping(address => WithdrawalRequest)) public	withdrawalRequestsPerEpoch;
 	mapping(uint256 => uint256) public 									lockedSharesPerEpoch;
@@ -62,28 +64,31 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	address public escrow;
 	address public roninStaking;
+	address public beacon;
 
 	uint256 public withdrawalEpoch;
 	uint256 public operatorFee;
 	uint256 public operatorFeeAmount;
 
 
-	mapping(address => bool) public operator;
+
+	uint256[50] private __gap;
 
 	event WithdrawalRequested(address indexed requester, uint256 indexed epoch, uint256 shareAmount);
 	event WithdrawalClaimed(address indexed claimer, uint256 indexed epoch, uint256 shareAmount, uint256 assetAmount);
 	event WithdrawalProcessInitiated(uint256 indexed epoch);
 	event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
-
-	constructor(address _roninStaking, address _wron, uint256 _operatorFee)
-	ERC4626(IERC20(_wron))
-	ERC20("Liquid Ronin ", "lRON")
-	RonHelper(_wron) {
+	function initialize(address _roninStaking, address _wron, uint256 _operatorFee, address _beacon) public initializer {
+		__ERC4626_init(IERC20Upgradeable(_wron));
+		__ERC20_init("Liquid Ronin ", "lRON");
+		__RonHelper_init(_wron);
+		__Ownable_init();
 		roninStaking = _roninStaking;
-		IERC20(_wron).approve(address(this), type(uint256).max);
 		escrow = address(new Escrow(_wron));
 		operatorFee = _operatorFee;
+		beacon = _beacon;
+		IERC20Upgradeable(_wron).approve(address(this), type(uint256).max);
 	}
 
 	/// @dev Modifier to restrict access of a function to an operator or owner
@@ -108,7 +113,12 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	/// @dev Deploys a new staking proxy contract to granulate stake amounts
 	function deployStakingProxy() external onlyOwner {
-		stakingProxies[stakingProxyCount++] = address(new LiquidProxy(roninStaking, wron));
+		bytes memory initData = abi.encodeWithSignature(
+			"initialize(address,address,address)",
+			roninStaking, asset(),
+			address(this)
+		);	
+		stakingProxies[stakingProxyCount++] = address(new BeaconProxy(beacon, initData));
 	}
 
 	/// @dev Withdraws the operator fee to the owner
@@ -259,7 +269,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		_burn(address(this), lockedAssets);
 		lockedPricePerSharePerEpoch[epoch] = LockedPricePerShare(totalShares, _totalAssets);
 		statusPerEpoch[withdrawalEpoch++] = WithdrawalStatus.FINALISED;
-		IERC20(asset()).transfer(escrow, previewRedeem(lockedAssets));
+		IERC20Upgradeable(asset()).transfer(escrow, previewRedeem(lockedAssets));
 	}
 
 	//////////////////////
@@ -290,7 +300,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	/// @dev Gets the total amount of assets in the contract
 	function getAssetsInVault() public view returns (uint256) {
-		return IERC20(asset()).balanceOf(address(this));
+		return IERC20Upgradeable(asset()).balanceOf(address(this));
 	}
 
 	/// @dev Gets the total amount of assets the vault controls
@@ -340,7 +350,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		LockedPricePerShare memory lockLog = lockedPricePerSharePerEpoch[_epoch];
 		uint256 assets = _convertToAssets(shares, lockLog.assetSupply, lockLog.shareSupply);
 		request.fulfilled = true;
-		IERC20(asset()).transferFrom(escrow, address(this), assets);
+		IERC20Upgradeable(asset()).transferFrom(escrow, address(this), assets);
 		_withdrawRONTo(msg.sender, assets);
 		emit WithdrawalClaimed(msg.sender, epoch, shares, assets);
 	}
@@ -385,7 +395,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// @param _totalShares The total shares in the contract at time of epoch finalisation
 	/// @return The amount of assets the shares are worth
     function _convertToAssets(uint256 _shares, uint256 _totalAssets, uint256 _totalShares) internal view returns (uint256) {
-        return _shares.mulDiv(_totalAssets + 1, _totalShares + 10 ** _decimalsOffset(), Math.Rounding.Down);
+        return _shares.mulDiv(_totalAssets + 1, _totalShares + 10 ** _decimalsOffset(), MathUpgradeable.Rounding.Down);
     }
 
 	/// @dev Checks if a user can receive RON tokens

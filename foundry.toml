@@ -8,7 +8,7 @@ optimizer_runs = 200
 use_literal_content = true
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/contracts/",
-	"@openzeppelinupgrade/=lib/openzeppelin-contracts-upgradeable/contracts/",
+	"@openzeppelinups/=lib/openzeppelin-contracts-upgradeable/contracts/",
 ]
 
 [rpc_endpoints]

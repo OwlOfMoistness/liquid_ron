@@ -7,6 +7,8 @@ pragma solidity ^0.8.17;
  *    -"-"-
  */
 
+import {Initializable} from "@openzeppelinups/proxy/utils/Initializable.sol";
+
 interface IWRON {
 	function deposit() external payable;
 	function withdraw(uint256) external;
@@ -15,10 +17,10 @@ interface IWRON {
 
 /// @title RonHelper contract used to help with WRON token transfer operations
 /// @author OwlOfMoistness
-abstract contract RonHelper {
+abstract contract RonHelper is Initializable {
 	address wron;
 
-	constructor(address _wron) {
+	function __RonHelper_init(address _wron) internal initializer {
 		wron = _wron;
 	}
 
