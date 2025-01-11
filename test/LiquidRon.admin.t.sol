@@ -11,6 +11,7 @@ import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {Escrow} from "../src/Escrow.sol";
 import {UpgradeableBeacon} from "@openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {OwnableUpgradeable} from "@openzeppelinups/access/OwnableUpgradeable.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
@@ -31,7 +32,7 @@ contract LiquidRonTest is Test {
 		wrappedRon = new WrappedRon();
 		LiquidRon impl = new LiquidRon();
 		LiquidProxy proxyImpl = new LiquidProxy();
-		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl));
+		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl), address(this));
 		bytes memory data = abi.encodeWithSignature(
 			"initialize(address,address,uint256,address,address)",
 			address(mockRonStaking),
@@ -61,7 +62,7 @@ contract LiquidRonTest is Test {
 
 	function test_revert_admin_pause(address _user) public {
 		vm.assume(_user != address(this));
-		vm.expectRevert("Ownable: caller is not the owner");
+		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _user));
 		vm.prank(_user);
 		liquidRon.pause();
 	}
@@ -78,7 +79,7 @@ contract LiquidRonTest is Test {
 	}
 
 	function test_admin_set_fee_recipient(address _user) public {
-		liquidRon.setFeeRecipient(_user);
+		liquidRon.updateFeeRecipient(_user);
 		assertEq(liquidRon.feeRecipient(), _user);
 	}
 
@@ -89,7 +90,7 @@ contract LiquidRonTest is Test {
 
 	function test_admin_revert_set_operator(address _operator) public {
 		vm.assume(_operator != address(this));
-		vm.expectRevert("Ownable: caller is not the owner");
+		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _operator));
 		vm.prank(_operator);
 		liquidRon.updateOperator(_operator, true);
 	}
@@ -101,7 +102,7 @@ contract LiquidRonTest is Test {
 	}
 
 	function test_admin_revert_set_operator_fee(uint256 _amount) public {
-		vm.expectRevert("Ownable: caller is not the owner");
+		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, consensusAddrs[1]));
 		vm.prank(consensusAddrs[1]);
 		liquidRon.setOperatorFee(_amount);
 		vm.expectRevert("LiquidRon: Invalid fee");
@@ -110,7 +111,7 @@ contract LiquidRonTest is Test {
 
 	function test_admin_revert_deploy_staking_proxy(address _user) public {
 		vm.assume(_user != address(this));
-		vm.expectRevert("Ownable: caller is not the owner");
+		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _user));
 		vm.prank(_user);
 		liquidRon.deployStakingProxy();
 	}
@@ -167,8 +168,7 @@ contract LiquidRonTest is Test {
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
 		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
 		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
-		liquidRon.transferOwnership(address(wrappedRon));
-		vm.prank(address(wrappedRon));
+		liquidRon.updateFeeRecipient(address(wrappedRon));
 		vm.expectRevert("RonHelper: withdraw failed");
 		liquidRon.fetchOperatorFee();
 	}

@@ -9,6 +9,7 @@ import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {UpgradeableBeacon} from "@openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {IERC20Errors} from "@openzeppelin/interfaces/draft-IERC6093.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
@@ -29,7 +30,7 @@ contract LiquidRonTest is Test {
 		wrappedRon = new WrappedRon();
 		LiquidRon impl = new LiquidRon();
 		LiquidProxy proxyImpl = new LiquidProxy();
-		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl));
+		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl), address(this));
 		bytes memory data = abi.encodeWithSignature(
 			"initialize(address,address,uint256,address,address)",
 			address(mockRonStaking),
@@ -88,7 +89,7 @@ contract LiquidRonTest is Test {
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++)
 			amounts[i] = delegateAmount;
-		vm.expectRevert("ERC20: burn amount exceeds balance");
+		vm.expectPartialRevert(IERC20Errors.ERC20InsufficientBalance.selector);
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 	}
 

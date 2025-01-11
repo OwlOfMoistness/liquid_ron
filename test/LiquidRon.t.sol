@@ -30,7 +30,7 @@ contract LiquidRonTest is Test {
 		wrappedRon = new WrappedRon();
 		LiquidRon impl = new LiquidRon();
 		LiquidProxy proxyImpl = new LiquidProxy();
-		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl));
+		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl), address(this));
 		bytes memory data = abi.encodeWithSignature(
 			"initialize(address,address,uint256,address,address)",
 			address(mockRonStaking),
