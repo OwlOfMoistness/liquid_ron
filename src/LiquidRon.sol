@@ -65,6 +65,7 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 	address public escrow;
 	address public roninStaking;
 	address public beacon;
+	address public feeRecipient;
 
 	uint256 public withdrawalEpoch;
 	uint256 public operatorFee;
@@ -79,7 +80,7 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 	event WithdrawalProcessInitiated(uint256 indexed epoch);
 	event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
-	function initialize(address _roninStaking, address _wron, uint256 _operatorFee, address _beacon) public initializer {
+	function initialize(address _roninStaking, address _wron, uint256 _operatorFee, address _beacon, address _feeRecipient) public initializer {
 		__ERC4626_init(IERC20Upgradeable(_wron));
 		__ERC20_init("Liquid Ronin ", "lRON");
 		__RonHelper_init(_wron);
@@ -88,6 +89,7 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 		escrow = address(new Escrow(_wron));
 		operatorFee = _operatorFee;
 		beacon = _beacon;
+		feeRecipient = _feeRecipient;
 		IERC20Upgradeable(_wron).approve(address(this), type(uint256).max);
 	}
 
@@ -95,6 +97,12 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 	modifier onlyOperator() {
 		if (msg.sender != owner() || operator[msg.sender]) revert ErrInvalidOperator();
 		_;
+	}
+
+	/// @dev Updates the fee recipient address
+	/// @param _feeRecipient The new fee recipient address
+	function updateFeeRecipient(address _feeRecipient) external onlyOwner {
+		feeRecipient = _feeRecipient;
 	}
 
 	/// @dev Updates the operator status of an address 
@@ -122,10 +130,10 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 	}
 
 	/// @dev Withdraws the operator fee to the owner
-	function fetchOperatorFee() external onlyOwner {
+	function fetchOperatorFee() external {
 		uint256 amount = operatorFeeAmount;
 		operatorFeeAmount = 0;
-		_withdrawRONTo(owner(), amount);
+		_withdrawRONTo(feeRecipient, amount);
 	}
 
 	///////////////////////////////

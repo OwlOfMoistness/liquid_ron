@@ -33,11 +33,12 @@ contract LiquidRonTest is Test {
 		LiquidProxy proxyImpl = new LiquidProxy();
 		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl));
 		bytes memory data = abi.encodeWithSignature(
-			"initialize(address,address,uint256,address)",
+			"initialize(address,address,uint256,address,address)",
 			address(mockRonStaking),
 			address(wrappedRon),
 			250,
-			address(beacon)
+			address(beacon),
+			address(this)
 		);
 		TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(address(impl), address(impl), data);
 		liquidRon = LiquidRon(payable(proxy));
@@ -74,6 +75,11 @@ contract LiquidRonTest is Test {
 		liquidRon.pause();
 		vm.expectRevert(Pausable.ErrPaused.selector);
 		liquidRon.deposit{value:1000 ether}();
+	}
+
+	function test_admin_set_fee_recipient(address _user) public {
+		liquidRon.setFeeRecipient(_user);
+		assertEq(liquidRon.feeRecipient(), _user);
 	}
 
 	function test_admin_set_operator(address _operator) public {
