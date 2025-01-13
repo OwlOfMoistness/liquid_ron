@@ -30,19 +30,7 @@ contract LiquidRonTest is Test {
 		mockRonStaking = new MockRonStaking();
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		LiquidRon impl = new LiquidRon();
-		LiquidProxy proxyImpl = new LiquidProxy();
-		UpgradeableBeacon beacon = new UpgradeableBeacon(address(proxyImpl), address(this));
-		bytes memory data = abi.encodeWithSignature(
-			"initialize(address,address,uint256,address,address)",
-			address(mockRonStaking),
-			address(wrappedRon),
-			250,
-			address(beacon),
-			address(this)
-		);
-		TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(address(impl), address(impl), data);
-		liquidRon = LiquidRon(payable(proxy));
+		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 250, address(this));
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();

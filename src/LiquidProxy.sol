@@ -18,10 +18,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
 	address public vault;
 	address public roninStaking;
 
-	uint256[50] private __gap;
-
-	function initialize(address _roninStaking, address _wron, address _vault) public initializer {
-		__RonHelper_init(_wron);
+	constructor(address _roninStaking, address _wron, address _vault) RonHelper(_wron) {
 		vault = _vault;
 		roninStaking = _roninStaking;
 	}

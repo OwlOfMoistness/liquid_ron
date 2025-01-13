@@ -7,9 +7,9 @@ pragma solidity ^0.8.17;
  *    -"-"-
  */
 
-import "@openzeppelinups/access/OwnableUpgradeable.sol";
+import "@openzeppelin/access/Ownable.sol";
 
-abstract contract Pausable is OwnableUpgradeable {
+abstract contract Pausable is Ownable {
 	error ErrPaused();
 	bool public paused;
 

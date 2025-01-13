@@ -9,10 +9,10 @@ pragma solidity ^0.8.17;
 
 import {IRoninValidator} from "./interfaces/IRoninValidators.sol";
 import {ILiquidProxy} from "./interfaces/ILiquidProxy.sol";
-import "@openzeppelinups/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import "@openzeppelin/token/ERC20/extensions/ERC4626.sol";
 import "@openzeppelin/token/ERC20/IERC20.sol";
 import "@openzeppelin/utils/math/Math.sol";
-import {BeaconProxy} from "@openzeppelin/proxy/beacon/BeaconProxy.sol";
+import {Ownable} from "@openzeppelin/access/Ownable.sol";
 import {Pausable} from "./Pausable.sol";
 import {RonHelper} from "./RonHelper.sol";
 import {Escrow} from "./Escrow.sol";
@@ -27,7 +27,7 @@ enum WithdrawalStatus {
 
 /// @title A contract to manage the staking and withdrawal of RON tokens in exchange of an interest bearing token
 /// @author OwlOfMoistness 
-contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker {
+contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	using Math for uint256;
 
 	error ErrRequestFulfilled();
@@ -64,31 +64,26 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 
 	address public escrow;
 	address public roninStaking;
-	address public beacon;
 	address public feeRecipient;
 
 	uint256 public withdrawalEpoch;
 	uint256 public operatorFee;
 	uint256 public operatorFeeAmount;
 
-
-
-	uint256[50] private __gap;
-
 	event WithdrawalRequested(address indexed requester, uint256 indexed epoch, uint256 shareAmount);
 	event WithdrawalClaimed(address indexed claimer, uint256 indexed epoch, uint256 shareAmount, uint256 assetAmount);
 	event WithdrawalProcessInitiated(uint256 indexed epoch);
 	event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
-	function initialize(address _roninStaking, address _wron, uint256 _operatorFee, address _beacon, address _feeRecipient) public initializer {
-		__ERC4626_init(IERC20(_wron));
-		__ERC20_init("Liquid Ronin ", "lRON");
-		__RonHelper_init(_wron);
-		__Ownable_init(msg.sender);
+	constructor(address _roninStaking, address _wron, uint256 _operatorFee, address _feeRecipient)
+		ERC4626(IERC20(_wron))
+		ERC20("Liquid Ronin ", "lRON")
+		RonHelper(_wron)
+		Ownable(msg.sender)
+	{
 		roninStaking = _roninStaking;
 		escrow = address(new Escrow(_wron));
 		operatorFee = _operatorFee;
-		beacon = _beacon;
 		feeRecipient = _feeRecipient;
 		IERC20(_wron).approve(address(this), type(uint256).max);
 	}
@@ -121,12 +116,7 @@ contract LiquidRon is ERC4626Upgradeable, RonHelper, Pausable, ValidatorTracker 
 
 	/// @dev Deploys a new staking proxy contract to granulate stake amounts
 	function deployStakingProxy() external onlyOwner {
-		bytes memory initData = abi.encodeWithSignature(
-			"initialize(address,address,address)",
-			roninStaking, asset(),
-			address(this)
-		);	
-		stakingProxies[stakingProxyCount++] = address(new BeaconProxy(beacon, initData));
+		stakingProxies[stakingProxyCount++] = address(new LiquidProxy(roninStaking, asset(), address(this)));
 	}
 
 	/// @dev Withdraws the operator fee to the owner
