@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 
 import {Test, console} from "forge-std/Test.sol";
-import {LiquidRon, WithdrawalStatus, Pausable} from "../src/LiquidRon.sol";
+import {LiquidRon, WithdrawalStatus, Pausable, RonHelper} from "../src/LiquidRon.sol";
 import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
@@ -34,13 +34,6 @@ contract LiquidRonTest is Test {
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
-	}
-
-	function test_revert_proxy_calls_not_vault() public {
-		vm.prank(consensusAddrs[1]);
-		address proxy = liquidRon.stakingProxies(0);
-		vm.expectRevert("LiquidProxy: not vault");
-		LiquidProxy(payable(proxy)).harvest(consensusAddrs);
 	}
 
 	function test_admin_pause() public {
@@ -157,7 +150,7 @@ contract LiquidRonTest is Test {
 		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
 		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 		liquidRon.updateFeeRecipient(address(wrappedRon));
-		vm.expectRevert("RonHelper: withdraw failed");
+		vm.expectRevert(RonHelper.ErrWithdrawFailed.selector);
 		liquidRon.fetchOperatorFee();
 	}
 
@@ -167,6 +160,14 @@ contract LiquidRonTest is Test {
 		vm.expectRevert(Escrow.ErrNotVault.selector);
 		vm.prank(_user);
 		e.deposit(1000 ether, _user);
+	}
+
+	function test_revert_proxies_not_vault(address _user) public {
+		vm.assume(_user != address(liquidRon));
+		LiquidProxy lp = LiquidProxy(payable(liquidRon.stakingProxies(0)));
+		vm.expectRevert(LiquidProxy.ErrNotVault.selector);
+		vm.prank(_user);
+		lp.harvest(consensusAddrs);
 	}
 
 	receive() external payable {}

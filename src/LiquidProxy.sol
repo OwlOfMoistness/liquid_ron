@@ -15,6 +15,8 @@ import {RonHelper} from "./RonHelper.sol";
 /// 	   It allows to granulate staking amounts to reduce reward waste by movings assets around
 /// @author OwlOfMoistness
 contract LiquidProxy is RonHelper, ILiquidProxy {
+	error ErrNotVault();
+
 	address public vault;
 	address public roninStaking;
 
@@ -25,7 +27,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
 
 	/// @dev Only the LRON vault can call any function
 	modifier onlyVault() {
-		require(msg.sender == vault, "LiquidProxy: not vault");
+		if (msg.sender != vault) revert ErrNotVault();
 		_;
 	}
 

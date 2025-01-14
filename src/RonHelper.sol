@@ -16,6 +16,8 @@ interface IWRON {
 /// @title RonHelper contract used to help with WRON token transfer operations
 /// @author OwlOfMoistness
 abstract contract RonHelper {
+	error ErrWithdrawFailed();
+
 	address wron;
 
 	constructor(address _wron) {
@@ -36,6 +38,6 @@ abstract contract RonHelper {
 	function _withdrawRONTo(address to, uint256 amount) internal {
 		IWRON(wron).withdraw(amount);
 		(bool success, ) = to.call{value: amount}("");
-		require(success, "RonHelper: withdraw failed");
+		if (!success) revert ErrWithdrawFailed();
 	}
 }
