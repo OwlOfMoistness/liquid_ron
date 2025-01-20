@@ -310,11 +310,21 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// USER FUNCTIONS ///
 	//////////////////////
 
-  
-	/// @dev Following 3 functions have been overidden to prevent unintended deposit or withdrawal effects
-	function mint(uint256 shares, address receiver) public override returns (uint256) {}
-	function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {}
-	function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {}
+	/// @dev We override to prevent wrong event emission and send native ron back to user
+	function withdraw(uint256 _assets, address _receiver, address _owner) public override returns (uint256) {
+		uint256 shares = super.withdraw(_assets, address(this), _owner);
+		_withdrawRONTo(_receiver, _assets);
+		emit Withdraw(msg.sender, _receiver, _owner, _assets, shares);
+		return shares;
+	}
+
+	/// @dev We override to prevent wrong event emission and send native ron back to user
+	function redeem(uint256 _assets, address _receiver, address _owner) public override returns (uint256) {
+		uint256 assets = super.redeem(_assets, address(this), _owner);
+		_withdrawRONTo(_receiver, assets);
+		emit Withdraw(msg.sender, _receiver, _owner, _assets, _assets);
+		return assets;
+	}
 
 	/// @notice Deposits RON tokens into the contract
 	function deposit() external payable whenNotPaused {
@@ -402,6 +412,30 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		(bool success, ) = payable(_user).call{value: 0}("");
 		if(!success) revert ErrCannotReceiveRon();
 	}
+
+	/// @dev We override to remove the event emission and use `asset()` since _asset is private
+    function _withdraw(
+        address caller,
+        address receiver,
+        address owner,
+        uint256 assets,
+        uint256 shares
+    ) internal override {
+        if (caller != owner) {
+            _spendAllowance(owner, caller, shares);
+        }
+
+        // If _asset is ERC777, `transfer` can trigger a reentrancy AFTER the transfer happens through the
+        // `tokensReceived` hook. On the other hand, the `tokensToSend` hook, that is triggered before the transfer,
+        // calls the vault, which is assumed not malicious.
+        //
+        // Conclusion: we need to do the transfer after the burn so that any reentrancy would happen after the
+        // shares are burned and after the assets are transferred, which is a valid state.
+        _burn(owner, shares);
+        SafeERC20.safeTransfer(IERC20(asset()), receiver, assets);
+
+        // emit Withdraw(caller, receiver, owner, assets, shares);
+    }
 
 	/// @dev Allows users to send RON tokens directly to the contract as if calling the deposit function
 	receive() external payable {
