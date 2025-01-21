@@ -1,3 +1,26 @@
+## Liquid Ron
+
+**Liquid Ron is a Ronin staking protocol that automates user staking actions.**
+
+Deposit RON, get liquid RON, a token representing your stake in the validation process of the Ronin Network.
+
+Liquid RON stakes and harvests rewards automatically, auto compounding your rewards and ensuring the best yield possible.
+
+# How does it work?
+
+Liquid RON is built on the [ERC-4626 foundation](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/), a token interest bearing vault. As users deposit RON, it gets staked in the validation process, and the vault tokens price per share will increase over time as rewards are realised. 
+
+Users can freely transfer Liquid RON.
+
+# Deposits
+
+Users can call the `deposit()` function to send RON directly to the vault. The vault will then issue the correct amount of Liquid RON. Alternatively you can use the standard `deposit` or `mint` functions of the ERC-4626 standard. 
+
+
+# Witdrawals
+
+User withdrawals are done via the vault standard. If not enough liquidity is present at any given time, users can request withdrawal by locking their tokens and an operator will process those amounts once/twice a week (TBD).
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
