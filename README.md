@@ -21,6 +21,7 @@ Users can call the `deposit()` function to send RON directly to the vault. The v
 
 User withdrawals are done via the vault standard. If not enough liquidity is present at any given time, users can request withdrawal by locking their tokens and an operator will process those amounts once/twice a week (TBD).
 
+## Expected contract behaviours
 
 - RON tokens can only go from users to the vault, vault to staking proxies, and proxies to the Ronin staking contract.
 - Users can query any function available from the [ERC-4626](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/) as well as requesting withdrawals and depositing RON natively
