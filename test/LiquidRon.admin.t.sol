@@ -151,6 +151,7 @@ contract LiquidRonTest is Test {
 		assertApproxEqAbs(newTotal - total, expectedYield - expectedFee, expectedYield / 1e9);
 		liquidRon.updateFeeRecipient(address(wrappedRon));
 		vm.expectRevert(RonHelper.ErrWithdrawFailed.selector);
+		vm.prank(address(wrappedRon));
 		liquidRon.fetchOperatorFee();
 	}
 
@@ -168,6 +169,13 @@ contract LiquidRonTest is Test {
 		vm.expectRevert(LiquidProxy.ErrNotVault.selector);
 		vm.prank(_user);
 		lp.harvest(consensusAddrs);
+	}
+
+	function test_revert_fee_recipient(address _user) public {
+		vm.assume(_user != address(this));
+		vm.expectRevert(LiquidRon.ErrNotFeeRecipient.selector);
+		vm.prank(_user);
+		liquidRon.fetchOperatorFee();	
 	}
 
 	receive() external payable {}

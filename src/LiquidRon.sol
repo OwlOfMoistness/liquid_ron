@@ -31,11 +31,11 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	error ErrRequestFulfilled();
 	error ErrWithdrawalProcessNotFinalised();
-	error ErrWrongTVLSubmission();
 	error ErrInvalidOperator();
 	error ErrBadProxy();
 	error ErrCannotReceiveRon();
 	error ErrNotZero();
+	error ErrNotFeeRecipient();
 
 	struct WithdrawalRequest {
 		bool fulfilled;
@@ -115,8 +115,9 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		stakingProxies[stakingProxyCount++] = address(new LiquidProxy(roninStaking, asset(), address(this)));
 	}
 
-	/// @dev Withdraws the operator fee to the owner
+	/// @dev Withdraws the operator fee to the fee recipient
 	function fetchOperatorFee() external {
+		if (msg.sender != feeRecipient) revert ErrNotFeeRecipient();
 		uint256 amount = operatorFeeAmount;
 		operatorFeeAmount = 0;
 		_withdrawRONTo(feeRecipient, amount);
