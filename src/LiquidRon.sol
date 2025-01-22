@@ -233,11 +233,13 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         }
     }
 
-    ////////////////////////////////
-    /// WITHDRAWAL PROCESS FUNCS ///
-    ////////////////////////////////
+    ////////////////////////////////////
+    /// WITHDRAWAL PROCESS FUNCTIONS ///
+    ////////////////////////////////////
 
     /// @dev Finalises the RON rewards for the current epoch
+	///		 This function is called when users have called the requestWithdrawal, usually when the amount
+	///      of assets in the contract is not enough to cover all the withdrawals
     function finaliseRonRewardsForEpoch() external onlyOperator whenNotPaused {
         uint256 epoch = withdrawalEpoch;
         uint256 lockedShares = lockedSharesPerEpoch[epoch];
@@ -254,7 +256,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     /// VIEW FUNCTIONS ///
     //////////////////////
 
-    /// @dev Gets the total amount of RON tokens staked in each staking proxy and each consensus address
+    /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
     function getTotalStaked() public view returns (uint256) {
         address[] memory consensusAddrs = _getValidators();
         uint256 proxyCount = stakingProxyCount;
@@ -264,7 +266,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         return totalStaked;
     }
 
-    /// @dev Gets the total amount of RON tokens staked in each staking proxy and each consensus address
+    /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
     function getTotalRewards() public view returns (uint256) {
         address[] memory consensusAddrs = _getValidators();
         uint256 proxyCount = stakingProxyCount;
@@ -289,6 +291,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     //////////////////////
 
     /// @dev We override to prevent wrong event emission and send native ron back to user
+	///		 Acts as the ERC4626 withdraw function 
     function withdraw(uint256 _assets, address _receiver, address _owner) public override returns (uint256) {
         uint256 shares = super.withdraw(_assets, address(this), _owner);
         _withdrawRONTo(_receiver, _assets);
@@ -297,6 +300,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @dev We override to prevent wrong event emission and send native ron back to user
+	///		 Acts as the ERC4626 redeem function 
     function redeem(uint256 _shares, address _receiver, address _owner) public override returns (uint256) {
         uint256 assets = super.redeem(_shares, address(this), _owner);
         _withdrawRONTo(_receiver, assets);
@@ -305,12 +309,15 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @notice Deposits RON tokens into the contract
+	///			We send the native token to the escrow to prevent wrong share minting amounts
     function deposit() external payable whenNotPaused {
         _depositRONTo(escrow, msg.value);
         Escrow(escrow).deposit(msg.value, msg.sender);
     }
 
     /// @notice Requests a withdrawal of RON tokens
+	///         Called ideally if the amount of assets exceeds the vault's balance
+	///			Users should favour using withdraw or redeem functions to avoid the need of this function
     /// @param _shares The amount of shares (LRON) to burn
     function requestWithdrawal(uint256 _shares) external whenNotPaused {
         uint256 epoch = withdrawalEpoch;
@@ -324,6 +331,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @notice Redeems RON tokens for assets for a specific withdrawal epoch
+	///			Callable only once per epoch
     /// @param _epoch The epoch to redeem the RON tokens for
     function redeem(uint256 _epoch) external whenNotPaused {
         uint256 epoch = withdrawalEpoch;
@@ -397,7 +405,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         if (!success) revert ErrCannotReceiveRon();
     }
 
-    /// @dev We override to remove the event emission and use `asset()` since _asset is private
+    /// @dev We override to remove the event emission to prevent wrong data emission and use `asset()` since _asset is private
+	///      The receiver would be the vault with the new withdrawal flow. The even has been moved in the withdraw and redeem functions
     function _withdraw(
         address caller,
         address receiver,
@@ -422,8 +431,9 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @dev Allows users to send RON tokens directly to the contract as if calling the deposit function
+	///      Lets the transfer go though if sender is wrapped RON
     receive() external payable {
-        if (msg.sender != roninStaking && msg.sender != asset()) {
+        if (msg.sender != asset()) {
             _depositRONTo(escrow, msg.value);
             Escrow(escrow).deposit(msg.value, msg.sender);
         }
