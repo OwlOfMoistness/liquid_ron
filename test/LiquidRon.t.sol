@@ -74,12 +74,8 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 		skip(86400 * 365 + 1);
 		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2);
-		liquidRon.initiateWithdrawalEpoch();
 		WithdrawalStatus status = liquidRon.statusPerEpoch(liquidRon.withdrawalEpoch());
-		assertTrue(status == WithdrawalStatus.INITIATED);
-		uint256 bal = liquidRon.balanceOf(address(this));
-		vm.expectRevert(LiquidRon.ErrWithdrawalProcessInitiated.selector);
-		liquidRon.requestWithdrawal(bal / 2);
+		assertTrue(status == WithdrawalStatus.STANDBY);
 		vm.expectRevert(LiquidRon.ErrWithdrawalProcessNotFinalised.selector);
 		liquidRon.redeem(0);
 	}
@@ -96,7 +92,6 @@ contract LiquidRonTest is Test {
 		skip(86400 * 365 + 2 + 1);
 		uint256 epoch = liquidRon.withdrawalEpoch();
 		liquidRon.requestWithdrawal(200 ether);
-		liquidRon.initiateWithdrawalEpoch();
 		liquidRon.finaliseRonRewardsForEpoch();
 		WithdrawalStatus status = liquidRon.statusPerEpoch(epoch);
 		assertTrue(status == WithdrawalStatus.FINALISED);

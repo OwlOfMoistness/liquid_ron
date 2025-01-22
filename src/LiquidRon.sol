@@ -21,7 +21,6 @@ import {ValidatorTracker} from "./ValidatorTracker.sol";
 
 enum WithdrawalStatus {
 	STANDBY,
-	INITIATED,
 	FINALISED
 }
 
@@ -31,11 +30,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	using Math for uint256;
 
 	error ErrRequestFulfilled();
-	error ErrWithdrawalProcessInitiated();
 	error ErrWithdrawalProcessNotFinalised();
-	error ErrWithdrawalEpochNotInitiated();
 	error ErrWrongTVLSubmission();
-	error ErrWithdrawalEpochAlreadyEngaged();
 	error ErrInvalidOperator();
 	error ErrBadProxy();
 	error ErrCannotReceiveRon();
@@ -53,10 +49,10 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	uint256 constant public BIPS = 10_000;
 
-	mapping(address => bool) public operator;
-	mapping(uint256 => LockedPricePerShare) public 						lockedPricePerSharePerEpoch;
+	mapping(address => bool) public										operator;
+	mapping(uint256 => LockedPricePerShare) public						lockedPricePerSharePerEpoch;
 	mapping(uint256 => mapping(address => WithdrawalRequest)) public	withdrawalRequestsPerEpoch;
-	mapping(uint256 => uint256) public 									lockedSharesPerEpoch;
+	mapping(uint256 => uint256) public									lockedSharesPerEpoch;
 	mapping(uint256 => WithdrawalStatus) public							statusPerEpoch;
 
 	mapping(uint256 => address) public 									stakingProxies;
@@ -72,7 +68,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
 	event WithdrawalRequested(address indexed requester, uint256 indexed epoch, uint256 shareAmount);
 	event WithdrawalClaimed(address indexed claimer, uint256 indexed epoch, uint256 shareAmount, uint256 assetAmount);
-	event WithdrawalProcessInitiated(uint256 indexed epoch);
+	event WithdrawalProcessFinalised(uint256 indexed epoch, uint256 shares, uint256 assets);
 	event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
 	constructor(address _roninStaking, address _wron, uint256 _operatorFee, address _feeRecipient)
@@ -216,7 +212,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		ILiquidProxy(stakingProxies[_proxyIndex]).undelegateAmount(_amounts, _consensusAddrs);
 	}
 
-	/// @dev Prunes the validator list by removing validators with no rewards or staking amounts
+	/// @dev Prunes the validator list by removing validators with no rewards and no staking amounts
 	/// To remove redundant reads if a consensus address is not used anymore or has renounced
 	function pruneValidatorList() external {
 		uint256 listCount = validatorCount;
@@ -248,26 +244,17 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	/// WITHDRAWAL PROCESS FUNCS ///
 	////////////////////////////////
 
-	function initiateWithdrawalEpoch() external onlyOperator whenNotPaused {
-		if (statusPerEpoch[withdrawalEpoch] != WithdrawalStatus.STANDBY) revert ErrWithdrawalEpochAlreadyEngaged();
-		uint256 epoch = withdrawalEpoch;
-
-		statusPerEpoch[epoch] = WithdrawalStatus.INITIATED;
-		emit WithdrawalProcessInitiated(epoch);
-	}
-
 	/// @dev Finalises the RON rewards for the current epoch
 	function finaliseRonRewardsForEpoch() external onlyOperator whenNotPaused {
 		uint256 epoch = withdrawalEpoch;
-		if (statusPerEpoch[epoch] != WithdrawalStatus.INITIATED) revert ErrWithdrawalEpochNotInitiated();
-		uint256 totalShares = totalSupply();
-		uint256 _totalAssets = totalAssets();
-		uint256 lockedAssets = lockedSharesPerEpoch[epoch];
+		uint256 lockedShares = lockedSharesPerEpoch[epoch];
 
-		_burn(address(this), lockedAssets);
-		lockedPricePerSharePerEpoch[epoch] = LockedPricePerShare(totalShares, _totalAssets);
 		statusPerEpoch[withdrawalEpoch++] = WithdrawalStatus.FINALISED;
-		IERC20(asset()).transfer(escrow, previewRedeem(lockedAssets));
+		uint256 assets = previewRedeem(lockedShares);
+		_withdraw(address(this), escrow, address(this), assets, lockedShares);
+		lockedPricePerSharePerEpoch[epoch] = LockedPricePerShare(lockedShares, assets);
+
+		emit WithdrawalProcessFinalised(epoch, lockedShares, assets);
 	}
 
 	//////////////////////
@@ -319,10 +306,10 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	}
 
 	/// @dev We override to prevent wrong event emission and send native ron back to user
-	function redeem(uint256 _assets, address _receiver, address _owner) public override returns (uint256) {
-		uint256 assets = super.redeem(_assets, address(this), _owner);
+	function redeem(uint256 _shares, address _receiver, address _owner) public override returns (uint256) {
+		uint256 assets = super.redeem(_shares, address(this), _owner);
 		_withdrawRONTo(_receiver, assets);
-		emit Withdraw(msg.sender, _receiver, _owner, _assets, _assets);
+		emit Withdraw(msg.sender, _receiver, _owner, assets, _shares);
 		return assets;
 	}
 
@@ -339,7 +326,6 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		WithdrawalRequest storage request = withdrawalRequestsPerEpoch[epoch][msg.sender];
 
 		_checkUserCanReceiveRon(msg.sender);
-		if (statusPerEpoch[epoch] != WithdrawalStatus.STANDBY) revert ErrWithdrawalProcessInitiated();
 		request.shares += _shares;
 		lockedSharesPerEpoch[epoch] += _shares;
 		_transfer(msg.sender, address(this), _shares);
