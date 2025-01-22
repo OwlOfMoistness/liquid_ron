@@ -23,7 +23,7 @@ User withdrawals are done via the vault standard. If not enough liquidity is pre
 
 ## Expected contract behaviours
 
-- RON tokens can only go from users to the vault, vault to staking proxies, and proxies to the Ronin staking contract.
+- RON tokens can only go from users to the vault, vault to staking proxies, and proxies to the Ronin staking contract. The inverse flow is also true.
 - Users can query any function available from the [ERC-4626](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/) as well as requesting withdrawals and depositing RON natively
 - Operators can manage how RON tokens are staked on various proxies and validators. The point is to granulate the stakes enough that if big withdrawals are needed, we can both stake and unstake without having locked positions for 72 hours.
 - RON will be allocated to generate the best yield
