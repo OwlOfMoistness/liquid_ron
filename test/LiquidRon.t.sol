@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.20;
 
 
 import {Test, console} from "forge-std/Test.sol";
@@ -8,8 +8,6 @@ import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
-import {UpgradeableBeacon} from "@openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;

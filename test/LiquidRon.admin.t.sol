@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.20;
 
 
 import {Test, console} from "forge-std/Test.sol";
@@ -9,9 +9,7 @@ import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {Escrow} from "../src/Escrow.sol";
-import {UpgradeableBeacon} from "@openzeppelin/proxy/beacon/UpgradeableBeacon.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {OwnableUpgradeable} from "@openzeppelinups/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/access/Ownable.sol";
 
 contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
@@ -43,7 +41,7 @@ contract LiquidRonTest is Test {
 
 	function test_revert_admin_pause(address _user) public {
 		vm.assume(_user != address(this));
-		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _user));
+		vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _user));
 		vm.prank(_user);
 		liquidRon.pause();
 	}
@@ -71,7 +69,7 @@ contract LiquidRonTest is Test {
 
 	function test_admin_revert_set_operator(address _operator) public {
 		vm.assume(_operator != address(this));
-		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _operator));
+		vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _operator));
 		vm.prank(_operator);
 		liquidRon.updateOperator(_operator, true);
 	}
@@ -83,7 +81,7 @@ contract LiquidRonTest is Test {
 	}
 
 	function test_admin_revert_set_operator_fee(uint256 _amount) public {
-		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, consensusAddrs[1]));
+		vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, consensusAddrs[1]));
 		vm.prank(consensusAddrs[1]);
 		liquidRon.setOperatorFee(_amount);
 		vm.expectRevert("LiquidRon: Invalid fee");
@@ -92,7 +90,7 @@ contract LiquidRonTest is Test {
 
 	function test_admin_revert_deploy_staking_proxy(address _user) public {
 		vm.assume(_user != address(this));
-		vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, _user));
+		vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _user));
 		vm.prank(_user);
 		liquidRon.deployStakingProxy();
 	}
