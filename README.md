@@ -32,7 +32,7 @@ User withdrawals are done via the vault standard. If not enough liquidity is pre
 
 ## Contract function explanation
 
-Escrow.sol - Contract deployed by the vault to act an intermediary to hold funds for the vault to prevent miscaculations in how the vault mints and burns shares. Because we are dealing with native RON but the vault is handling wrapped RON, and to simplify the user flow by allowing users to deposit native ron directly, the escrow contract is used to hold pending withdrawable funds as well as deposit for users.
+Escrow.sol - Contract deployed by the vault to act an intermediary to hold funds for the vault to prevent miscaculations in how the vault mints and burns shares. The vault is handling wrapped RON while users commonly use native RON. To simplify the user flow, we allow users to deposit native ron directly. The escrow contract is also used to hold pending withdrawable funds as well as deposit for users.
 
 - `deposit(uint256 _amount, address _receiver)` - Called by the vault `deposit()` function. Only the vault can call this function to prevent malicious extraction of funds from the escrow. The escrow account then calls the [ERC-4626](https://ethereum.org/en/developers/docs/standards/tokens/erc-4626/) `deposit(uint256 _amount, address _receiver)` function to deposit on behalf of the receiver.
 
