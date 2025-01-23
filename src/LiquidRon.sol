@@ -273,9 +273,12 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         address[] memory consensusAddrs = _getValidators();
         uint256 proxyCount = stakingProxyCount;
         uint256 totalRewards;
+		uint256	totalFees;
 
-        for (uint256 i = 0; i < proxyCount; i++) totalRewards += _getTotalRewardsInProxy(i, consensusAddrs);
-        return totalRewards;
+        for (uint256 i = 0; i < proxyCount; i++)
+			totalRewards += _getTotalRewardsInProxy(i, consensusAddrs);
+		totalFees = totalRewards * operatorFee / BIPS;
+        return totalRewards - totalFees;
     }
 
     /// @dev Gets the total amount of assets in the contract
@@ -285,7 +288,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev Gets the total amount of assets the vault controls
     function totalAssets() public view override returns (uint256) {
-        return super.totalAssets() + getTotalStaked() + getTotalRewards() - operatorFeeAmount;
+        return super.totalAssets() + getTotalStaked() + getTotalRewards();
     }
 
     //////////////////////
