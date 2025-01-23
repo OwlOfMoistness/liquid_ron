@@ -75,8 +75,10 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         address _roninStaking,
         address _wron,
         uint256 _operatorFee,
-        address _feeRecipient
-    ) ERC4626(IERC20(_wron)) ERC20("Liquid Ronin ", "lRON") RonHelper(_wron) Ownable(msg.sender) {
+        address _feeRecipient,
+		string calldata _name,
+		string calldata _symbol
+    ) ERC4626(IERC20(_wron)) ERC20(_name, _symbol) RonHelper(_wron) Ownable(msg.sender) {
         roninStaking = _roninStaking;
         escrow = address(new Escrow(_wron));
         operatorFee = _operatorFee;
