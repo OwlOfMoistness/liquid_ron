@@ -301,7 +301,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev We override to prevent wrong event emission and send native ron back to user
 	///		 Acts as the ERC4626 withdraw function 
-    function withdraw(uint256 _assets, address _receiver, address _owner) public override returns (uint256) {
+    function withdraw(uint256 _assets, address _receiver, address _owner) public override whenNotPaused returns (uint256) {
         uint256 shares = super.withdraw(_assets, address(this), _owner);
         _withdrawRONTo(_receiver, _assets);
         emit Withdraw(msg.sender, _receiver, _owner, _assets, shares);
@@ -310,12 +310,22 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev We override to prevent wrong event emission and send native ron back to user
 	///		 Acts as the ERC4626 redeem function 
-    function redeem(uint256 _shares, address _receiver, address _owner) public override returns (uint256) {
+    function redeem(uint256 _shares, address _receiver, address _owner) public override whenNotPaused returns (uint256) {
         uint256 assets = super.redeem(_shares, address(this), _owner);
         _withdrawRONTo(_receiver, assets);
         emit Withdraw(msg.sender, _receiver, _owner, assets, _shares);
         return assets;
     }
+
+	/// @dev We override to add the pause check
+	function deposit(uint256 _assets, address _receiver) public override whenNotPaused returns(uint256){
+		return super.deposit(_assets, _receiver);
+	}
+
+	/// @dev We override to add the pause check
+	function mint(uint256 _assets, address _receiver)public override whenNotPaused returns(uint256) {
+		return super.mint(_assets, _receiver);
+	}
 
     /// @notice Deposits RON tokens into the contract
 	///			We send the native token to the escrow to prevent wrong share minting amounts
