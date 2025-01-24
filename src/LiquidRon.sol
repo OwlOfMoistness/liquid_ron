@@ -269,6 +269,10 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
+	///	     It is worth mentionning that the return value of this call may change based on the operator fee.
+	///      It could be possible to put the operator fee update behind a timelock to prevent manipulation of the amount returned
+	///      But the problem still persists even to a lesser degree. Overall users do not suffer much from this.
+	///		 Clear communication on when the fee will change will allow people plenty of time to decide whether to exit or not
     function getTotalRewards() public view returns (uint256) {
         address[] memory consensusAddrs = _getValidators();
         uint256 proxyCount = stakingProxyCount;
@@ -411,7 +415,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @dev We override to remove the event emission to prevent wrong data emission and use `asset()` since _asset is private
-	///      The receiver would be the vault with the new withdrawal flow. The even has been moved in the withdraw and redeem functions
+	///      The receiver would be the vault with the new withdrawal flow. The Withdraw event has been moved in the withdraw and redeem functions
     function _withdraw(
         address caller,
         address receiver,
