@@ -35,9 +35,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @param _consensusAddrs The consensus addresses to harvest rewards from
     /// @return claimedAmount The amount of RON claimed from the staking contract
     function harvest(address[] calldata _consensusAddrs) external onlyVault returns (uint256) {
-        for (uint256 i = 0; i < _consensusAddrs.length; i++) {
-            IRoninValidator(roninStaking).claimRewards(_consensusAddrs);
-        }
+        IRoninValidator(roninStaking).claimRewards(_consensusAddrs);
         uint256 claimedAmount = address(this).balance;
         _depositRONTo(vault, claimedAmount);
         return claimedAmount;
