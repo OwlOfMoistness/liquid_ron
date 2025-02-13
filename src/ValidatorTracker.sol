@@ -49,6 +49,7 @@ abstract contract ValidatorTracker {
             validators[index] = lastValidator;
             validatorIndex[lastValidator] = index;
             validators.pop();
+            delete validatorIndex[_validator];
         }
     }
 }
