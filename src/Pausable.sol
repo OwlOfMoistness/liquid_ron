@@ -14,8 +14,12 @@ abstract contract Pausable is Ownable {
     bool public paused;
 
     modifier whenNotPaused() {
-        if (paused) revert ErrPaused();
+        _checkIfPaused();
         _;
+    }
+
+    function _checkIfPaused() internal view {
+        if (paused) revert ErrPaused();
     }
 
     function pause() external onlyOwner {

@@ -457,6 +457,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	///      Lets the transfer go though if sender is wrapped RON
     receive() external payable {
         if (msg.sender != asset()) {
+            _checkIfPaused();
             _depositRONTo(escrow, msg.value);
             Escrow(escrow).deposit(msg.value, msg.sender);
         }

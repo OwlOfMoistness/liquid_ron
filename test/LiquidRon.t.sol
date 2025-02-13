@@ -176,6 +176,13 @@ contract LiquidRonTest is Test {
 		assertTrue(post - pre == assets);
 	}
 
+	function test_revert_native_deposit_pause() public {
+		(bool res,) = address(liquidRon).call{value:1 ether}("");
+		liquidRon.pause();
+		vm.expectRevert(Pausable.ErrPaused.selector);
+		(res,) = address(liquidRon).call{value:1 ether}("");
+	}
+
 	receive() external payable {}
 
 }
