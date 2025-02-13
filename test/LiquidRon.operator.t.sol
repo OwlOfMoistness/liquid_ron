@@ -352,6 +352,8 @@ contract LiquidRonTest is Test {
 		am2[1] = delegateAmount;
 		liquidRon.undelegateAmount(0, am1, p1);
 		liquidRon.undelegateAmount(1, am2, p2);
+		liquidRon.harvest(0, consensusAddrs);
+		liquidRon.harvest(1, consensusAddrs);
 		liquidRon.pruneValidatorList();
 		assertEq(liquidRon.validatorCount(), 4);
 		address[] memory exp = new address[](4);
