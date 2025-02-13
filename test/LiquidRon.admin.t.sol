@@ -119,6 +119,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		expectedYield -= expectedFee;
 		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
 		uint256 operatorFee = liquidRon.operatorFeeAmount();
 		uint256 pre = address(this).balance;
@@ -144,6 +146,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		expectedYield -= expectedFee;
 		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
 		liquidRon.updateFeeRecipient(address(wrappedRon));
 		vm.expectRevert(RonHelper.ErrWithdrawFailed.selector);

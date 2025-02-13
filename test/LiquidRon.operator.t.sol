@@ -97,6 +97,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		expectedYield -= expectedFee;
 		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
 	}
 
@@ -119,6 +121,8 @@ contract LiquidRonTest is Test {
 		liquidRon.harvest(2, consensusAddrs);
 		uint256 newTotal =  liquidRon.totalAssets();
 		uint256 expectedYield = uint256(_amount) * uint256(_duration) * 12 / 100 / 365 / 86400;
+		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
+		expectedYield -= expectedFee;
 		assertApproxEqAbs(newTotal - total, expectedYield, expectedYield / 1e9);
 	}
 

@@ -293,7 +293,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev Gets the total amount of assets the vault controls
     function totalAssets() public view override returns (uint256) {
-        return super.totalAssets() + getTotalStaked() + getTotalRewards();
+        return super.totalAssets() + getTotalStaked() + getTotalRewards() - operatorFeeAmount;
     }
 
     //////////////////////
