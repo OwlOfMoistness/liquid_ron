@@ -88,7 +88,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev Modifier to restrict access of a function to an operator or owner
     modifier onlyOperator() {
-        if (msg.sender != owner() || operator[msg.sender]) revert ErrInvalidOperator();
+        if (msg.sender != owner() && !operator[msg.sender]) revert ErrInvalidOperator();
         _;
     }
 
