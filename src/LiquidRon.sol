@@ -40,6 +40,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     struct WithdrawalRequest {
         bool fulfilled;
         uint256 shares;
+        address receiver;
     }
 
     struct LockedPricePerShare {
@@ -66,8 +67,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     uint256 public operatorFee;
     uint256 public operatorFeeAmount;
 
-    event WithdrawalRequested(address indexed requester, uint256 indexed epoch, uint256 shareAmount);
-    event WithdrawalClaimed(address indexed claimer, uint256 indexed epoch, uint256 shareAmount, uint256 assetAmount);
+    event WithdrawalRequested(address indexed caller, address indexed receiver, uint256 indexed epoch, uint256 shareAmount);
+    event WithdrawalClaimed(address indexed caller, address indexed receiver, uint256 indexed epoch, uint256 shareAmount, uint256 assetAmount);
     event WithdrawalProcessFinalised(uint256 indexed epoch, uint256 shares, uint256 assets);
     event Harvest(uint256 indexed proxyIndex, uint256 amount);
 
@@ -338,15 +339,24 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	///         Called ideally if the amount of assets exceeds the vault's balance
 	///			Users should favour using withdraw or redeem functions to avoid the need of this function
     /// @param _shares The amount of shares (LRON) to burn
-    function requestWithdrawal(uint256 _shares) external whenNotPaused {
+    /// @param _receiver The address to send the assets to
+    function requestWithdrawal(uint256 _shares, address _receiver) external whenNotPaused {
         uint256 epoch = withdrawalEpoch;
         WithdrawalRequest storage request = withdrawalRequestsPerEpoch[epoch][msg.sender];
 
-        _checkUserCanReceiveRon(msg.sender);
         request.shares += _shares;
+        request.receiver = _receiver;
         lockedSharesPerEpoch[epoch] += _shares;
         _transfer(msg.sender, address(this), _shares);
-        emit WithdrawalRequested(msg.sender, epoch, _shares);
+        emit WithdrawalRequested(msg.sender, _receiver, epoch, _shares);
+    }
+
+    /// @notice Updates the receiver address for a specific withdrawal request
+    /// @param _epoch The epoch of the withdrawal request
+    /// @param _receiver The new receiver address
+    function updateReceiverForRequest(uint256 _epoch, address _receiver) external whenNotPaused {
+        WithdrawalRequest storage request = withdrawalRequestsPerEpoch[_epoch][msg.sender];
+        request.receiver = _receiver;
     }
 
     /// @notice Redeems RON tokens for assets for a specific withdrawal epoch
@@ -363,8 +373,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         uint256 assets = _convertToAssets(shares, lockLog.assetSupply, lockLog.shareSupply);
         request.fulfilled = true;
         IERC20(asset()).transferFrom(escrow, address(this), assets);
-        _withdrawRONTo(msg.sender, assets);
-        emit WithdrawalClaimed(msg.sender, epoch, shares, assets);
+        _withdrawRONTo(request.receiver, assets);
+        emit WithdrawalClaimed(msg.sender, request.receiver, epoch, shares, assets);
     }
     ///////////////////////////////
     /// INTERNAL VIEW FUNCTIONS ///
@@ -417,12 +427,6 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         return _shares.mulDiv(_totalAssets + 1, _totalShares + 10 ** _decimalsOffset(), Math.Rounding.Floor);
     }
 
-    /// @dev Checks if a user can receive RON tokens
-    /// @param _user The user to check
-    function _checkUserCanReceiveRon(address _user) internal {
-        (bool success, ) = payable(_user).call{value: 0}("");
-        if (!success) revert ErrCannotReceiveRon();
-    }
 
     /// @dev We override to remove the event emission to prevent wrong data emission and use `asset()` since _asset is private
 	///      The receiver would be the vault with the new withdrawal flow. The Withdraw event has been moved in the withdraw and redeem functions

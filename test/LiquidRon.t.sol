@@ -57,7 +57,7 @@ contract LiquidRonTest is Test {
 		for (uint256 i = 0; i < 5; i++) {
 			amounts[i] = delegateAmount;
 		}
-		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)));
+		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)), address(this));
 		assertEq(liquidRon.balanceOf(address(this)), 0);
 	}
 
@@ -71,7 +71,7 @@ contract LiquidRonTest is Test {
 		}
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 		skip(86400 * 365 + 1);
-		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2);
+		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2, address(this));
 		WithdrawalStatus status = liquidRon.statusPerEpoch(liquidRon.withdrawalEpoch());
 		assertTrue(status == WithdrawalStatus.STANDBY);
 		vm.expectRevert(LiquidRon.ErrWithdrawalProcessNotFinalised.selector);
@@ -89,7 +89,7 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 		skip(86400 * 365 + 2 + 1);
 		uint256 epoch = liquidRon.withdrawalEpoch();
-		liquidRon.requestWithdrawal(200 ether);
+		liquidRon.requestWithdrawal(200 ether, address(this));
 		liquidRon.finaliseRonRewardsForEpoch();
 		WithdrawalStatus status = liquidRon.statusPerEpoch(epoch);
 		assertTrue(status == WithdrawalStatus.FINALISED);
@@ -108,10 +108,33 @@ contract LiquidRonTest is Test {
 	// }
 
 	function test_revert_receiver_ron() public {
-		liquidRon.requestWithdrawal(0);
-		vm.prank(liquidRon.escrow());
-		vm.expectRevert(LiquidRon.ErrCannotReceiveRon.selector);
-		liquidRon.requestWithdrawal(0);
+		uint256 amount = 100000 ether;
+		liquidRon.deposit{value:amount}();
+		uint256 delegateAmount = amount / 7;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.requestWithdrawal(200 ether, liquidRon.escrow());
+		liquidRon.finaliseRonRewardsForEpoch();
+		vm.expectRevert();
+		liquidRon.redeem(0);
+	}
+
+	function test_update_receiver_ron() public {
+		uint256 amount = 100000 ether;
+		liquidRon.deposit{value:amount}();
+		uint256 delegateAmount = amount / 7;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.requestWithdrawal(200 ether, liquidRon.escrow());
+		liquidRon.finaliseRonRewardsForEpoch();
+		vm.expectRevert();
+		liquidRon.redeem(0);
+		liquidRon.updateReceiverForRequest(0, address(this));
+		liquidRon.redeem(0);
 	}
 
 	function test_withdraw_vault_function() public {

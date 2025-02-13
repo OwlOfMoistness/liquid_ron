@@ -271,7 +271,7 @@ contract LiquidRonTest is Test {
 		skip(86400 * 365 + 1);
 		liquidRon.harvest(0, consensusAddrs);
 		liquidRon.undelegateAmount(0, amounts, consensusAddrs);
-		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2);
+		liquidRon.requestWithdrawal(liquidRon.balanceOf(address(this)) / 2, address(this));
 		liquidRon.finaliseRonRewardsForEpoch();
 		WithdrawalStatus status = liquidRon.statusPerEpoch(liquidRon.withdrawalEpoch() - 1);
 		assertTrue(status == WithdrawalStatus.FINALISED);
