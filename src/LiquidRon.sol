@@ -363,7 +363,6 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	///			Callable only once per epoch
     /// @param _epoch The epoch to redeem the RON tokens for
     function redeem(uint256 _epoch) external whenNotPaused {
-        uint256 epoch = withdrawalEpoch;
         WithdrawalRequest storage request = withdrawalRequestsPerEpoch[_epoch][msg.sender];
         if (request.fulfilled) revert ErrRequestFulfilled();
         if (statusPerEpoch[_epoch] != WithdrawalStatus.FINALISED) revert ErrWithdrawalProcessNotFinalised();
@@ -374,7 +373,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         request.fulfilled = true;
         IERC20(asset()).transferFrom(escrow, address(this), assets);
         _withdrawRONTo(request.receiver, assets);
-        emit WithdrawalClaimed(msg.sender, request.receiver, epoch, shares, assets);
+        emit WithdrawalClaimed(msg.sender, request.receiver, _epoch, shares, assets);
     }
     ///////////////////////////////
     /// INTERNAL VIEW FUNCTIONS ///
