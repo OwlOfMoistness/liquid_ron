@@ -15,7 +15,6 @@ abstract contract ValidatorTracker {
     address[] public validators;
 
     mapping(address => bool) public validatorStakeActive;
-    mapping(address => uint256) public validatorStakeCount;
     mapping(address => uint256) public validatorIndex;
     uint256 public validatorCount;
 
