@@ -9,6 +9,7 @@ pragma solidity ^0.8.20;
 
 import {IRoninValidator} from "./interfaces/IRoninValidators.sol";
 import {ILiquidProxy} from "./interfaces/ILiquidProxy.sol";
+import {IProfile} from "./interfaces/IProfile.sol";
 import "@openzeppelin/token/ERC20/extensions/ERC4626.sol";
 import "@openzeppelin/token/ERC20/IERC20.sol";
 import "@openzeppelin/utils/math/Math.sol";
@@ -61,6 +62,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     address public escrow;
     address public roninStaking;
+    address public profile;
     address public feeRecipient;
 
     uint256 public withdrawalEpoch;
@@ -74,6 +76,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     constructor(
         address _roninStaking,
+        address _profile,
         address _wron,
         uint256 _operatorFee,
         address _feeRecipient,
@@ -81,6 +84,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 		string memory _symbol
     ) ERC4626(IERC20(_wron)) ERC20(_name, _symbol) RonHelper(_wron) Ownable(msg.sender) {
         roninStaking = _roninStaking;
+        profile = _profile;
         escrow = address(new Escrow(_wron));
         operatorFee = _operatorFee;
         feeRecipient = _feeRecipient;
@@ -148,7 +152,9 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         address[] calldata _consensusAddrs,
         address _consensusAddrDst
     ) external onlyOperator whenNotPaused {
-        _tryPushValidator(_consensusAddrDst);
+        address idDst = IProfile(profile).getConsensus2Id(_consensusAddrDst);
+
+        _tryPushValidator(idDst);
         uint256 harvestedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).harvestAndDelegateRewards(
             _consensusAddrs,
             _consensusAddrDst
@@ -168,11 +174,12 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     ) external onlyOperator whenNotPaused {
         address stakingProxy = stakingProxies[_proxyIndex];
         uint256 total;
+        address[] memory ids = IProfile(profile).getManyConsensus2Id(_consensusAddrs);
 
         if (stakingProxy == address(0)) revert ErrBadProxy();
         for (uint256 i = 0; i < _amounts.length; i++) {
             if (_amounts[i] == 0) revert ErrNotZero();
-            _tryPushValidator(_consensusAddrs[i]);
+            _tryPushValidator(ids[i]);
             total += _amounts[i];
         }
         _withdrawRONTo(stakingProxy, total);
@@ -190,11 +197,13 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         address[] calldata _consensusAddrsSrc,
         address[] calldata _consensusAddrsDst
     ) external onlyOperator whenNotPaused {
+        address[] memory idsDst = IProfile(profile).getManyConsensus2Id(_consensusAddrsDst);
+
         ILiquidProxy(stakingProxies[_proxyIndex]).redelegateAmount(_amounts, _consensusAddrsSrc, _consensusAddrsDst);
 
-        for (uint256 i = 0; i < _consensusAddrsSrc.length; i++) {
+        for (uint256 i = 0; i < idsDst.length; i++) {
             if (_amounts[i] == 0) revert ErrNotZero();
-            _tryPushValidator(_consensusAddrsDst[i]);
+            _tryPushValidator(idsDst[i]);
         }
     }
 
@@ -219,11 +228,12 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         for (uint256 i = 0; i < proxies.length; i++) proxies[i] = stakingProxies[i];
         for (uint256 i = 0; i < listCount; i++) {
             address vali = validators[listCount - 1 - i];
+            address consensus = IProfile(profile).getId2Consensus(vali);
             uint256[] memory rewards = new uint256[](proxies.length);
             address[] memory valis = new address[](proxies.length);
             for (uint256 j = 0; j < proxies.length; j++) {
-                rewards[j] = IRoninValidator(roninStaking).getReward(vali, proxies[j]);
-                valis[j] = vali;
+                rewards[j] = IRoninValidator(roninStaking).getReward(consensus, proxies[j]);
+                valis[j] = consensus;
             }
             uint256[] memory stakingTotals = IRoninValidator(roninStaking).getManyStakingAmounts(valis, proxies);
             bool canPrune = true;
@@ -261,7 +271,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
     function getTotalStaked() public view returns (uint256) {
-        address[] memory consensusAddrs = _getValidators();
+        address[] memory idList = _getValidators();
+        address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
         uint256 proxyCount = stakingProxyCount;
         uint256 totalStaked;
 
@@ -275,7 +286,8 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
 	///      But the problem still persists even to a lesser degree. Overall users do not suffer much from this.
 	///		 Clear communication on when the fee will change will allow people plenty of time to decide whether to exit or not
     function getTotalRewards() public view returns (uint256) {
-        address[] memory consensusAddrs = _getValidators();
+        address[] memory idList = _getValidators();
+        address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
         uint256 proxyCount = stakingProxyCount;
         uint256 totalRewards;
 		uint256	totalFees;

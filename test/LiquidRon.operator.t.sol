@@ -6,6 +6,7 @@ import {LiquidRon, WithdrawalStatus, Pausable} from "../src/LiquidRon.sol";
 import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
+import {MockProfile} from "../src/mock/MockProfile.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/interfaces/draft-IERC6093.sol";
 
@@ -13,6 +14,7 @@ contract LiquidRonTest is Test {
 	LiquidRon public liquidRon;
 	WrappedRon public wrappedRon;
 	MockRonStaking public mockRonStaking;
+	MockProfile public mockProfile;
 
 	address[] public consensusAddrs = [
 			0xF000000000000000000000000000000000000001,
@@ -21,12 +23,21 @@ contract LiquidRonTest is Test {
 			0xF000000000000000000000000000000000000004,
 			0xf000000000000000000000000000000000000005
 	];
+	address[] public idList = [
+		address(0x01), 
+		address(0x02), 
+		address(0x03), 
+		address(0x04), 
+		address(0x05)
+	];
 
 	function setUp() public {
-		mockRonStaking = new MockRonStaking();
+		mockProfile = new MockProfile();
+		mockRonStaking = new MockRonStaking(address(mockProfile));
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
-		liquidRon = new LiquidRon(address(mockRonStaking), address(wrappedRon), 250, address(this), "Test", "TST");
+		mockProfile.registerMany(idList, consensusAddrs);
+		liquidRon = new LiquidRon(address(mockRonStaking), address(mockProfile), address(wrappedRon), 250, address(this), "Test", "TST");
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
@@ -146,8 +157,8 @@ contract LiquidRonTest is Test {
 		uint256 expectedYield = uint256(_amount) * 12 / 100;
 		uint256 expectedFee = expectedYield * liquidRon.operatorFee() / liquidRon.BIPS();
 		assertTrue(newTotal - total >= expectedYield - expectedFee);
-		uint256 c0 = mockRonStaking.stakingAmounts(consensusAddrs[0], liquidRon.stakingProxies(0));
-		uint256 c3 = mockRonStaking.stakingAmounts(consensusAddrs[3], liquidRon.stakingProxies(0));
+		uint256 c0 = mockRonStaking.getStakingAmount(consensusAddrs[0], liquidRon.stakingProxies(0));
+		uint256 c3 = mockRonStaking.getStakingAmount(consensusAddrs[3], liquidRon.stakingProxies(0));
 		assertTrue(c0 > c3);
 	}
 
@@ -292,7 +303,34 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 		liquidRon.delegateAmount(1, amounts, consensusAddrs);
 		assertEq(liquidRon.validatorCount(), 5);
-		assertEq(liquidRon.getValidators(), consensusAddrs);
+		assertEq(liquidRon.getValidators(), idList);
+	}
+
+	function test_validator_array_consensus_change() public {
+		uint256 _amount = 10 ether;
+		liquidRon.deposit{value:_amount}();
+		uint256 delegateAmount = _amount / 17;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.delegateAmount(0, amounts, consensusAddrs);
+		liquidRon.delegateAmount(1, amounts, consensusAddrs);
+		assertEq(liquidRon.validatorCount(), 5);
+		assertEq(liquidRon.getValidators(), idList);
+		uint256 totalStaked = liquidRon.getTotalStaked();
+		mockProfile.updateConsensus(idList[0], address(0xff00000000000000000000000000000000000001));
+		vm.expectRevert();
+		address[] memory oldConsensusAddrs = new address[](1);
+		uint256[] memory newAmounts = new uint256[](1);
+		newAmounts[0] = delegateAmount;
+		oldConsensusAddrs[0] = consensusAddrs[0];
+		liquidRon.delegateAmount(0, newAmounts, oldConsensusAddrs);
+		assertEq(liquidRon.getTotalStaked(), totalStaked);
+		address[] memory newConsensusAddrs = new address[](1);
+		newConsensusAddrs[0] = 0xff00000000000000000000000000000000000001;
+		liquidRon.delegateAmount(0, newAmounts, newConsensusAddrs);
+		assertTrue(liquidRon.getTotalStaked() > totalStaked);
 	}
 
 	function test_validator_array_prune_no_change() public {
@@ -308,12 +346,12 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(2, amounts, consensusAddrs);
 		liquidRon.pruneValidatorList();
 		assertEq(liquidRon.validatorCount(), 5);
-		assertEq(liquidRon.getValidators(), consensusAddrs);
+		assertEq(liquidRon.getValidators(), idList);
 		skip(3 * 86400 + 1);
 		liquidRon.undelegateAmount(0, amounts, consensusAddrs);
 		liquidRon.pruneValidatorList();
 		assertEq(liquidRon.validatorCount(), 5);
-		assertEq(liquidRon.getValidators(), consensusAddrs);
+		assertEq(liquidRon.getValidators(), idList);
 
 		address[] memory srcs = new address[](2);
 		address[] memory dsts = new address[](2);
@@ -326,7 +364,7 @@ contract LiquidRonTest is Test {
 		ams[1] = delegateAmount;
 		liquidRon.redelegateAmount(2, ams, srcs, dsts);
 		assertEq(liquidRon.validatorCount(), 5);
-		assertEq(liquidRon.getValidators(), consensusAddrs);
+		assertEq(liquidRon.getValidators(), idList);
 	}
 
 	function test_validator_array_prune() public {
@@ -357,10 +395,10 @@ contract LiquidRonTest is Test {
 		liquidRon.pruneValidatorList();
 		assertEq(liquidRon.validatorCount(), 4);
 		address[] memory exp = new address[](4);
-		exp[0] = consensusAddrs[0];
-		exp[1] = consensusAddrs[1];
-		exp[2] = consensusAddrs[2];
-		exp[3] = consensusAddrs[3];
+		exp[0] = idList[0];
+		exp[1] = idList[1];
+		exp[2] = idList[2];
+		exp[3] = idList[3];
 		assertEq(liquidRon.getValidators(), exp);
 	}
 

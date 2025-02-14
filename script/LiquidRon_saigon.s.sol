@@ -13,6 +13,7 @@ contract CounterScript is Script {
 		address ronStaking = 0x9C245671791834daf3885533D24dce516B763B28;
 		address wrappedRon = 0xA959726154953bAe111746E265E6d754F48570E6;
 		address feeRecipient = 0x00000000000CbA43Ae9379E73c0ccB4E08D7eD30;
+        address profile = 0x3b67c8D22a91572a6AB18acC9F70787Af04A4043;
 
         address[] memory consensusAddrs = new address[](5);
         consensusAddrs[0] =  0xD086D2e3Fac052A3f695a4e8905Ce1722531163C;
@@ -21,7 +22,7 @@ contract CounterScript is Script {
         consensusAddrs[3] =  0xE9bf2A788C27dADc6B169d52408b710d267b9bff;
         consensusAddrs[4] =  0x847c2b1F0138e82C0e12c23D9B1f58bFFBe8e43b;
 
-        LiquidRon liquidRon = new LiquidRon(address(ronStaking), address(wrappedRon), 250, feeRecipient, "Liquid RON", "lRON");
+        LiquidRon liquidRon = new LiquidRon(address(ronStaking), profile, address(wrappedRon), 250, feeRecipient, "Liquid RON", "lRON");
         console.log("liquidRon contract address:", address(liquidRon));
         liquidRon.deployStakingProxy();
         liquidRon.deployStakingProxy();
