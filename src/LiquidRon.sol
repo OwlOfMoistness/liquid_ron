@@ -13,8 +13,7 @@ import {IProfile} from "./interfaces/IProfile.sol";
 import "@openzeppelin/token/ERC20/extensions/ERC4626.sol";
 import "@openzeppelin/token/ERC20/IERC20.sol";
 import "@openzeppelin/utils/math/Math.sol";
-import {Ownable} from "@openzeppelin/access/Ownable.sol";
-import {Pausable} from "./Pausable.sol";
+import {Pausable, Ownable} from "./Pausable.sol";
 import {RonHelper} from "./RonHelper.sol";
 import {Escrow} from "./Escrow.sol";
 import {LiquidProxy} from "./LiquidProxy.sol";
@@ -38,6 +37,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
     error ErrCannotReceiveRon();
     error ErrNotZero();
     error ErrNotFeeRecipient();
+    error ErrInvalidFee();
 
     struct WithdrawalRequest {
         bool fulfilled;
@@ -51,6 +51,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
     }
 
     uint256 public constant BIPS = 10_000;
+    uint256 public constant MAX_OPERATOR_FEE = 1000;
 
     mapping(address => bool) public operator;
     mapping(uint256 => LockedPricePerShare) public lockedPricePerSharePerEpoch;
@@ -90,7 +91,6 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
         escrow = address(new Escrow(_wron));
         operatorFee = _operatorFee;
         feeRecipient = _feeRecipient;
-        IERC20(_wron).approve(address(this), type(uint256).max);
     }
 
     /// @dev Modifier to restrict access of a function to an operator or owner
@@ -115,7 +115,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
     /// @dev Sets the operator fee for the contract
     /// @param _fee The new operator fee
     function setOperatorFee(uint256 _fee) external onlyOwner {
-        require(_fee < 1000, "LiquidRon: Invalid fee");
+        if (_fee > MAX_OPERATOR_FEE) revert ErrInvalidFee();
         operatorFee = _fee;
     }
 
@@ -212,12 +212,11 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
     ) external onlyOperator whenNotPaused {
         address[] memory idsDst = IProfile(profile).getManyConsensus2Id(_consensusAddrsDst);
 
-        ILiquidProxy(stakingProxies[_proxyIndex]).redelegateAmount(_amounts, _consensusAddrsSrc, _consensusAddrsDst);
-
         for (uint256 i = 0; i < idsDst.length; i++) {
             if (_amounts[i] == 0) revert ErrNotZero();
             _tryPushValidator(idsDst[i]);
         }
+        ILiquidProxy(stakingProxies[_proxyIndex]).redelegateAmount(_amounts, _consensusAddrsSrc, _consensusAddrsDst);
     }
 
     /// @dev Undelegates specific amounts of RON tokens from consensus addresses
@@ -286,7 +285,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
     function getTotalStaked() public override view returns (uint256) {
-        address[] memory idList = _getValidators();
+        address[] memory idList = getValidators();
         address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
         uint256 proxyCount = stakingProxyCount;
         uint256 totalStaked;
@@ -301,7 +300,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 	///      But the problem still persists even to a lesser degree. Overall users do not suffer much from this.
 	///		 Clear communication on when the fee will change will allow people plenty of time to decide whether to exit or not
     function getTotalRewards() public view returns (uint256) {
-        address[] memory idList = _getValidators();
+        address[] memory idList = getValidators();
         address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
         uint256 proxyCount = stakingProxyCount;
         uint256 totalRewards;
@@ -403,9 +402,9 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 
     /// @notice Deposits RON tokens into the contract
 	///			We send the native token to the escrow to prevent wrong share minting amounts
-    function deposit() external payable whenNotPaused returns(uint256) {
+    function deposit(address _receiver) external payable returns(uint256) {
         _depositRONTo(escrow, msg.value);
-        return Escrow(escrow).deposit(msg.value, msg.sender);
+        return Escrow(escrow).deposit(msg.value, _receiver);
     }
 
     /// @notice Requests a withdrawal of RON tokens
@@ -534,7 +533,6 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 	///      Lets the transfer go though if sender is wrapped RON
     receive() external payable {
         if (msg.sender != asset()) {
-            _checkIfPaused();
             _depositRONTo(escrow, msg.value);
             Escrow(escrow).deposit(msg.value, msg.sender);
         }
