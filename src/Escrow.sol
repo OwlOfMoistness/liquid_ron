@@ -10,7 +10,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/token/ERC20/IERC20.sol";
 
 interface IVault {
-    function deposit(uint256 _amount, address _receiver) external payable;
+    function deposit(uint256 _amount, address _receiver) external returns(uint256);
 }
 
 /// @title Escrow contract used to store RON tokens from the vault to prevent total assets miscalculations
@@ -30,8 +30,8 @@ contract Escrow {
     ///      in the vault and send the wrong amount of shares to the receiver. 
     /// @param _amount The amount of RON to deposit
     /// @param _receiver The receiver of the RON tokens
-    function deposit(uint256 _amount, address _receiver) external {
+    function deposit(uint256 _amount, address _receiver) external returns(uint256) {
         if (msg.sender != _vault) revert ErrNotVault();
-        IVault(payable(_vault)).deposit(_amount, _receiver);
+        return IVault(payable(_vault)).deposit(_amount, _receiver);
     }
 }

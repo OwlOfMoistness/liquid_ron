@@ -19,5 +19,5 @@ interface ILiquidProxy {
         address[] calldata _consensusAddrsSrc,
         address[] calldata _consensusAddrsDst
     ) external;
-    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external;
+    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external returns (uint256);
 }

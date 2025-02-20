@@ -19,6 +19,7 @@ import {RonHelper} from "./RonHelper.sol";
 import {Escrow} from "./Escrow.sol";
 import {LiquidProxy} from "./LiquidProxy.sol";
 import {ValidatorTracker} from "./ValidatorTracker.sol";
+import {RewardTracker} from "./RewardTracker.sol";
 
 enum WithdrawalStatus {
     STANDBY,
@@ -27,7 +28,7 @@ enum WithdrawalStatus {
 
 /// @title A contract to manage the staking and withdrawal of RON tokens in exchange of an interest bearing token
 /// @author OwlOfMoistness
-contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
+contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTracker {
     using Math for uint256;
 
     error ErrRequestFulfilled();
@@ -77,12 +78,13 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     constructor(
         address _roninStaking,
         address _profile,
+        address _validatorSet,
         address _wron,
         uint256 _operatorFee,
         address _feeRecipient,
 		string memory _name,
 		string memory _symbol
-    ) ERC4626(IERC20(_wron)) ERC20(_name, _symbol) RonHelper(_wron) Ownable(msg.sender) {
+    ) ERC4626(IERC20(_wron)) ERC20(_name, _symbol) RonHelper(_wron) Ownable(msg.sender) RewardTracker(_validatorSet) {
         roninStaking = _roninStaking;
         profile = _profile;
         escrow = address(new Escrow(_wron));
@@ -130,6 +132,11 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         _withdrawRONTo(feeRecipient, amount);
     }
 
+    /// @dev Sets the deposit fee for the contract
+    function setDepositFeeEnabled(bool _value) external onlyOwner {
+        depositFeeEnabled = _value;
+    }
+
     ///////////////////////////////
     /// STAKING PROXY FUNCTIONS ///
     ///////////////////////////////
@@ -139,7 +146,10 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     /// @param _consensusAddrs The consensus addresses to claim tokens from
     function harvest(uint256 _proxyIndex, address[] calldata _consensusAddrs) external onlyOperator whenNotPaused {
         uint256 harvestedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).harvest(_consensusAddrs);
-        operatorFeeAmount += (harvestedAmount * operatorFee) / BIPS;
+        uint256 fee = harvestedAmount * operatorFee / BIPS;
+
+        operatorFeeAmount += fee;
+        _logReward(_proxyIndex, harvestedAmount - fee);
         emit Harvest(_proxyIndex, harvestedAmount);
     }
 
@@ -154,12 +164,15 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     ) external onlyOperator whenNotPaused {
         address idDst = IProfile(profile).getConsensus2Id(_consensusAddrDst);
 
+        _syncTracker(0);
         _tryPushValidator(idDst);
         uint256 harvestedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).harvestAndDelegateRewards(
             _consensusAddrs,
             _consensusAddrDst
         );
-        operatorFeeAmount += (harvestedAmount * operatorFee) / BIPS;
+        uint256 fee = (harvestedAmount * operatorFee) / BIPS;
+        operatorFeeAmount += fee;
+         _logReward(_proxyIndex, harvestedAmount - fee);
         emit Harvest(_proxyIndex, harvestedAmount);
     }
 
@@ -216,7 +229,9 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         uint256[] calldata _amounts,
         address[] calldata _consensusAddrs
     ) external onlyOperator whenNotPaused {
-        ILiquidProxy(stakingProxies[_proxyIndex]).undelegateAmount(_amounts, _consensusAddrs);
+        _syncTracker(0);
+        uint256 undelegatedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).undelegateAmount(_amounts, _consensusAddrs);
+        _decreaseStakedBalance(undelegatedAmount);
     }
 
     /// @dev Prunes the validator list by removing validators with no rewards and no staking amounts
@@ -270,7 +285,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     //////////////////////
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
-    function getTotalStaked() public view returns (uint256) {
+    function getTotalStaked() public override view returns (uint256) {
         address[] memory idList = _getValidators();
         address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
         uint256 proxyCount = stakingProxyCount;
@@ -330,21 +345,67 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
         return assets;
     }
 
-	/// @dev We override to add the pause check
+    /// @dev We override to allow users to check correct preview of deposit if fees are enabled
+    function previewDeposit(uint256 _assets) public view override returns(uint256) {
+        uint256 shares =  super.previewDeposit(_assets);
+        uint256 fee;
+        if (depositFeeEnabled) {
+            fee = _getDepositFee(_assets);
+            fee = fee * shares / _assets;
+        }
+        return shares - fee;
+    }
+
+	/// @dev We override to add the pause check and calculate correct fee if applicable and log it
 	function deposit(uint256 _assets, address _receiver) public override whenNotPaused returns(uint256){
-		return super.deposit(_assets, _receiver);
+		uint256 maxAssets = maxDeposit(_receiver);
+        if (_assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(_receiver, _assets, maxAssets);
+        }
+
+        uint256 shares = ERC4626.previewDeposit(_assets);
+        uint256 fee;
+        if (depositFeeEnabled) {
+            fee = _getDepositFee(_assets);
+            _logFee(fee);
+            fee = fee * shares / _assets;
+        }
+        _deposit(_msgSender(), _receiver, _assets, shares - fee);
+        return shares - fee;
 	}
 
-	/// @dev We override to add the pause check
-	function mint(uint256 _assets, address _receiver)public override whenNotPaused returns(uint256) {
-		return super.mint(_assets, _receiver);
+    /// @dev We override to allow users to check correct preview of deposit if fees are enabled
+    function previewMint(uint256 _shares) public view override returns(uint256) {
+        uint256 assets =  super.previewMint(_shares);
+        uint256 fee;
+        if (depositFeeEnabled) {
+            fee = _getDepositFee(assets);
+        }
+        return assets + fee;
+    }
+
+	/// @dev We override to add the pause check and calculate correct fee if applicable and log it
+	function mint(uint256 _shares, address _receiver)public override whenNotPaused returns(uint256) {
+		uint256 maxShares = maxMint(_receiver);
+        if (_shares > maxShares) {
+            revert ERC4626ExceededMaxMint(_receiver, _shares, maxShares);
+        }
+
+        uint256 assets = ERC4626.previewMint(_shares);
+        uint256 fee;
+        if (depositFeeEnabled) {
+            fee = _getDepositFee(assets);
+            _logFee(fee);
+        }
+        _deposit(_msgSender(), _receiver, assets + fee, _shares);
+        return assets + fee;
 	}
 
     /// @notice Deposits RON tokens into the contract
 	///			We send the native token to the escrow to prevent wrong share minting amounts
-    function deposit() external payable whenNotPaused {
+    function deposit() external payable whenNotPaused returns(uint256) {
         _depositRONTo(escrow, msg.value);
-        Escrow(escrow).deposit(msg.value, msg.sender);
+        return Escrow(escrow).deposit(msg.value, msg.sender);
     }
 
     /// @notice Requests a withdrawal of RON tokens
@@ -372,7 +433,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     }
 
     /// @notice Redeems RON tokens for assets for a specific withdrawal epoch
-	///			Callable only once per epoch
+    ///         Callable only once per epoch
     /// @param _epoch The epoch to redeem the RON tokens for
     function redeem(uint256 _epoch) external whenNotPaused {
         WithdrawalRequest storage request = withdrawalRequestsPerEpoch[_epoch][msg.sender];
@@ -390,6 +451,11 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker {
     ///////////////////////////////
     /// INTERNAL VIEW FUNCTIONS ///
     ///////////////////////////////
+
+    /// @dev Gets the total amount of proxies managed by the vault
+    function _getProxyCount() internal override view returns (uint256) {
+        return stakingProxyCount;
+    }
 
     /// @dev Gets the total rewards in a staking proxy
     /// @param _proxyIndex The index of the staking proxy

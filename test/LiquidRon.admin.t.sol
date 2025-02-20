@@ -8,6 +8,7 @@ import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {MockProfile} from "../src/mock/MockProfile.sol";
+import {MockValidatorSet} from "../src/mock/MockValidatorSet.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {Escrow} from "../src/Escrow.sol";
 import {Ownable} from "@openzeppelin/access/Ownable.sol";
@@ -17,6 +18,7 @@ contract LiquidRonTest is Test {
 	WrappedRon public wrappedRon;
 	MockRonStaking public mockRonStaking;
 	MockProfile public mockProfile;
+	MockValidatorSet public mockValidatorSet;
 
 	address[] public consensusAddrs = [
 			0xF000000000000000000000000000000000000001,
@@ -34,15 +36,17 @@ contract LiquidRonTest is Test {
 	];
 
 	function setUp() public {
+		mockValidatorSet = new MockValidatorSet();
 		mockProfile = new MockProfile();
 		mockRonStaking = new MockRonStaking(address(mockProfile));
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
 		mockProfile.registerMany(idList, consensusAddrs);
-		liquidRon = new LiquidRon(address(mockRonStaking), address(mockProfile), address(wrappedRon), 250, address(this), "Test", "TST");
+		liquidRon = new LiquidRon(address(mockRonStaking), address(mockProfile), address(mockValidatorSet), address(wrappedRon), 250, address(this), "Test", "TST");
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
+		skip(86400);
 	}
 
 	function test_admin_pause() public {

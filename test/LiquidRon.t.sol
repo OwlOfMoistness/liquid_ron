@@ -8,6 +8,7 @@ import {LiquidProxy} from "../src/LiquidProxy.sol";
 import {WrappedRon} from "../src/mock/WrappedRon.sol";
 import {MockRonStaking} from "../src/mock/MockRonStaking.sol";
 import {MockProfile} from "../src/mock/MockProfile.sol";
+import {MockValidatorSet} from "../src/mock/MockValidatorSet.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
 contract LiquidRonTest is Test {
@@ -15,6 +16,7 @@ contract LiquidRonTest is Test {
 	WrappedRon public wrappedRon;
 	MockRonStaking public mockRonStaking;
 	MockProfile public mockProfile;
+	MockValidatorSet public mockValidatorSet;
 
 	address[] public consensusAddrs = [
 			0xF000000000000000000000000000000000000001,
@@ -32,15 +34,17 @@ contract LiquidRonTest is Test {
 	];
 
 	function setUp() public {
+		mockValidatorSet = new MockValidatorSet();
 		mockProfile = new MockProfile();
 		mockRonStaking = new MockRonStaking(address(mockProfile));
 		payable(address(mockRonStaking)).transfer(100_000_000 ether);
 		wrappedRon = new WrappedRon();
 		mockProfile.registerMany(idList, consensusAddrs);
-		liquidRon = new LiquidRon(address(mockRonStaking), address(mockProfile), address(wrappedRon), 250, address(this), "Test", "TST");
+		liquidRon = new LiquidRon(address(mockRonStaking), address(mockProfile), address(mockValidatorSet), address(wrappedRon), 250, address(this), "Test", "TST");
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
 		liquidRon.deployStakingProxy();
+		skip(86400);
 	}
 
 	function test_deposit(uint88 _amount) public {
@@ -163,7 +167,6 @@ contract LiquidRonTest is Test {
 		uint256 shares = liquidRon.withdraw(100 ether, address(this), address(this));
 		uint256 post = address(this).balance;
 		uint256 postl = liquidRon.balanceOf(address(this));
-		console.log("Shares: ", shares);
 		assertTrue(post - pre == 100 ether);
 		assertTrue(prel - postl == shares);
 	}

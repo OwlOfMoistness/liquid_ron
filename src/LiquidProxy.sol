@@ -79,13 +79,14 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @dev Undelegate a specific amount of RON from a validator
     /// @param _amounts The amounts to undelegate
     /// @param _consensusAddrs The consensus addresses to undelegate from
-    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault {
+    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault returns (uint256) {
         uint256 totalUndelegated;
         for (uint256 i = 0; i < _amounts.length; i++) {
             totalUndelegated += _amounts[i];
         }
         IRoninValidator(roninStaking).bulkUndelegate(_consensusAddrs, _amounts);
         _depositRONTo(vault, totalUndelegated);
+        return totalUndelegated;
     }
 
     /// @dev Receive function remains open as method to calculate total ron in contract does not use contract balance.
