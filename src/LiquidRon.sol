@@ -61,6 +61,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 
     mapping(uint256 => address) public stakingProxies;
     uint256 public stakingProxyCount;
+    uint256 _getTotalStaked;
 
     address public escrow;
     address public roninStaking;
@@ -172,6 +173,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
         );
         uint256 fee = (harvestedAmount * operatorFee) / BIPS;
         operatorFeeAmount += fee;
+        _getTotalStaked += harvestedAmount;
          _logReward(_proxyIndex, harvestedAmount - fee);
         emit Harvest(_proxyIndex, harvestedAmount);
     }
@@ -195,6 +197,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
             _tryPushValidator(ids[i]);
             total += _amounts[i];
         }
+        _getTotalStaked += total;
         _withdrawRONTo(stakingProxy, total);
         ILiquidProxy(stakingProxy).delegateAmount(_amounts, _consensusAddrs);
     }
@@ -231,6 +234,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
         _syncTracker(0);
         uint256 undelegatedAmount = ILiquidProxy(stakingProxies[_proxyIndex]).undelegateAmount(_amounts, _consensusAddrs);
         _decreaseStakedBalance(undelegatedAmount);
+        _getTotalStaked -= undelegatedAmount;
     }
 
     /// @dev Prunes the validator list by removing validators with no rewards and no staking amounts
@@ -285,13 +289,7 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
     function getTotalStaked() public override view returns (uint256) {
-        address[] memory idList = getValidators();
-        address[] memory consensusAddrs = IProfile(profile).getManyId2Consensus(idList);
-        uint256 proxyCount = stakingProxyCount;
-        uint256 totalStaked;
-
-        for (uint256 i = 0; i < proxyCount; i++) totalStaked += _getTotalStakedInProxy(i, consensusAddrs);
-        return totalStaked;
+        return _getTotalStaked;
     }
 
     /// @dev Gets the total amount of RON tokens staked in each staking proxy for each consensus address within them
