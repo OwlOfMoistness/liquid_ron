@@ -13,7 +13,8 @@ import {ITimingInfo} from "./interfaces/ITimingInfo.sol";
 /// @dev This contract allows us to give a decent approximation of future daily rewards to calculate correct depositing fees for users
 /// @author OwlOfMoistness
 abstract contract RewardTracker {
-	
+	uint256 immutable public periodStartOfVault;
+
 	address internal validatorSet;
 	mapping(uint256 => uint256) public stakedBalance;
 	mapping(uint256 => uint256) public rewardsClaimed;
@@ -25,6 +26,7 @@ abstract contract RewardTracker {
 
 	constructor(address _validatorSet) {
 		validatorSet = _validatorSet;
+		periodStartOfVault = ITimingInfo(validatorSet).currentPeriod();
 	}
 
 	/// @dev Internal functino used to update the logged period in the contract
