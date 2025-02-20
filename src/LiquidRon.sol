@@ -239,12 +239,16 @@ contract LiquidRon is ERC4626, RonHelper, Pausable, ValidatorTracker, RewardTrac
 
     /// @dev Prunes the validator list by removing validators with no rewards and no staking amounts
     /// To remove redundant reads if a consensus address is not used anymore or has renounced
-    function pruneValidatorList() external {
+    /// @param _startIndex The index to start pruning from. Starts from the end of the list
+    /// @param _length The amount of validators to check
+    function pruneValidatorList(uint256 _startIndex, uint256 _length) external {
         uint256 listCount = validatorCount;
         address[] memory proxies = new address[](stakingProxyCount);
 
+        if (_startIndex >= listCount) return;
+        if (_startIndex + _length > listCount) _length = listCount - _startIndex;
         for (uint256 i = 0; i < proxies.length; i++) proxies[i] = stakingProxies[i];
-        for (uint256 i = 0; i < listCount; i++) {
+        for (uint256 i = _startIndex; i < _startIndex + _length; i++) {
             address vali = validators[listCount - 1 - i];
             address consensus = IProfile(profile).getId2Consensus(vali);
             uint256[] memory rewards = new uint256[](proxies.length);

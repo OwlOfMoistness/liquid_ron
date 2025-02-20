@@ -371,12 +371,12 @@ contract LiquidRonTest is Test {
 		liquidRon.delegateAmount(0, amounts, consensusAddrs);
 		liquidRon.delegateAmount(1, amounts, consensusAddrs);
 		liquidRon.delegateAmount(2, amounts, consensusAddrs);
-		liquidRon.pruneValidatorList();
+		liquidRon.pruneValidatorList(0, 100);
 		assertEq(liquidRon.validatorCount(), 5);
 		assertEq(liquidRon.getValidators(), idList);
 		skip(3 * 86400 + 1);
 		liquidRon.undelegateAmount(0, amounts, consensusAddrs);
-		liquidRon.pruneValidatorList();
+		liquidRon.pruneValidatorList(0, 100);
 		assertEq(liquidRon.validatorCount(), 5);
 		assertEq(liquidRon.getValidators(), idList);
 
@@ -419,7 +419,7 @@ contract LiquidRonTest is Test {
 		liquidRon.undelegateAmount(1, am2, p2);
 		liquidRon.harvest(0, consensusAddrs);
 		liquidRon.harvest(1, consensusAddrs);
-		liquidRon.pruneValidatorList();
+		liquidRon.pruneValidatorList(0, 100);
 		assertEq(liquidRon.validatorCount(), 4);
 		address[] memory exp = new address[](4);
 		exp[0] = idList[0];
@@ -428,6 +428,42 @@ contract LiquidRonTest is Test {
 		exp[3] = idList[3];
 		assertEq(liquidRon.getValidators(), exp);
 	}
+
+	function test_validator_array_prune_with_index() public {
+		uint256 _amount = 10 ether;
+		liquidRon.deposit{value:_amount}(address(this));
+		uint256 delegateAmount = _amount / 17;
+		uint256[] memory amounts = new uint256[](5);
+		for (uint256 i = 0; i < 5; i++) {
+			amounts[i] = delegateAmount;
+		}
+		liquidRon.delegateAmount(0, amounts, consensusAddrs);
+		liquidRon.delegateAmount(1, amounts, consensusAddrs);
+		skip(3 * 86400 + 1);
+		address[] memory p1 = new address[](2);
+		address[] memory p2 = new address[](2);
+		uint256[] memory am1 = new uint256[](2);
+		uint256[] memory am2 = new uint256[](2);
+		p1[0] = consensusAddrs[1];
+		p1[1] = consensusAddrs[2];
+		p2[0] = consensusAddrs[1];
+		p2[1] = consensusAddrs[2];
+		am1[0] = delegateAmount;
+		am1[1] = delegateAmount;
+		am2[0] = delegateAmount;
+		am2[1] = delegateAmount;
+		liquidRon.undelegateAmount(0, am1, p1);
+		liquidRon.undelegateAmount(1, am2, p2);
+		liquidRon.harvest(0, consensusAddrs);
+		liquidRon.harvest(1, consensusAddrs);
+		liquidRon.pruneValidatorList(2, 2);
+		assertEq(liquidRon.validatorCount(), 3);
+		address[] memory exp = new address[](3);
+		exp[0] = idList[0];
+		exp[1] = idList[3];
+		exp[2] = idList[4];
+		assertEq(liquidRon.getValidators(), exp);
+	} 
 
 	function test_revert_only_operator() public {
 		vm.expectRevert(LiquidRon.ErrInvalidOperator.selector);
