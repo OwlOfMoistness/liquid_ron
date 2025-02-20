@@ -50,7 +50,7 @@ contract LiquidRonTest is Test {
 	function test_deposit(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
 		uint256 pre = wrappedRon.balanceOf(address(liquidRon));
-		liquidRon.deposit{value:_amount}();
+		liquidRon.deposit{value:_amount}(address(this));
 		assertEq(liquidRon.balanceOf(address(this)), _amount);
 		assertEq(wrappedRon.balanceOf(address(liquidRon)), pre + _amount);
 	}
@@ -66,7 +66,7 @@ contract LiquidRonTest is Test {
 
 	function test_withdraw_init(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
-		liquidRon.deposit{value:_amount}();
+		liquidRon.deposit{value:_amount}(address(this));
 		uint256 delegateAmount = _amount / 5;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -78,7 +78,7 @@ contract LiquidRonTest is Test {
 
 	function test_revert_start_withdraw_process_user() public {
 		uint256 amount = 10000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 5;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -95,7 +95,7 @@ contract LiquidRonTest is Test {
 
 	function test_withdraw_process_user() public {
 		uint256 amount = 100000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 7;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -124,7 +124,7 @@ contract LiquidRonTest is Test {
 
 	function test_revert_receiver_ron() public {
 		uint256 amount = 100000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 7;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -138,7 +138,7 @@ contract LiquidRonTest is Test {
 
 	function test_update_receiver_ron() public {
 		uint256 amount = 100000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 7;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -154,7 +154,7 @@ contract LiquidRonTest is Test {
 
 	function test_withdraw_vault_function() public {
 		uint256 amount = 100000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 7;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -173,7 +173,7 @@ contract LiquidRonTest is Test {
 
 	function test_redeem_vault_function() public {
 		uint256 amount = 100000 ether;
-		liquidRon.deposit{value:amount}();
+		liquidRon.deposit{value:amount}(address(this));
 		uint256 delegateAmount = amount / 7;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {

@@ -16,9 +16,10 @@ import {RonHelper} from "./RonHelper.sol";
 /// @author OwlOfMoistness
 contract LiquidProxy is RonHelper, ILiquidProxy {
     error ErrNotVault();
+    error ErrSameAddress();
 
-    address public vault;
-    address public roninStaking;
+    address public immutable vault;
+    address public immutable roninStaking;
 
     constructor(address _roninStaking, address _wron, address _vault) RonHelper(_wron) {
         vault = _vault;
@@ -72,6 +73,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
         address[] calldata _consensusAddrsDst
     ) external onlyVault {
         for (uint256 i = 0; i < _amounts.length; i++) {
+            if (_consensusAddrsSrc[i] == _consensusAddrsDst[i]) revert ErrSameAddress();
             IRoninValidator(roninStaking).redelegate(_consensusAddrsSrc[i], _consensusAddrsDst[i], _amounts[i]);
         }
     }

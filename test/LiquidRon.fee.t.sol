@@ -59,7 +59,7 @@ contract LiquidRonTest is StdCheats,  Test {
 
 	function test_fee_stacked_balance() public {
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -85,7 +85,7 @@ contract LiquidRonTest is StdCheats,  Test {
 
 	function test_fee_index_tracker() public {
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -109,7 +109,7 @@ contract LiquidRonTest is StdCheats,  Test {
 
 	function test_update_valid_period() public {
 		uint256 _amount = 1000000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -136,7 +136,7 @@ contract LiquidRonTest is StdCheats,  Test {
 		// _depositAmount = bound(uint256(_depositAmount), uint256(1e18), uint256(2 ** 128));
 		_depositAmount = bound(_depositAmount, 1e18, 2 ** 128);
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -169,7 +169,7 @@ contract LiquidRonTest is StdCheats,  Test {
 	function test_fee_on_mint(uint256 _depositAmount) public {
 		_depositAmount = bound(_depositAmount, 1e18, 1000000000 ether);
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -208,7 +208,7 @@ contract LiquidRonTest is StdCheats,  Test {
 	function test_fee_on_deposit(uint256 _depositAmount) public {
 		_depositAmount = bound(_depositAmount, 1e18, 1000000000 ether);
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -249,7 +249,7 @@ contract LiquidRonTest is StdCheats,  Test {
 	function test_fee_on_deposit_payable(uint256 _depositAmount) public {
 		_depositAmount = bound(_depositAmount, 1e18, 1000000000 ether);
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -279,7 +279,7 @@ contract LiquidRonTest is StdCheats,  Test {
 		liquidRon.setDepositFeeEnabled(true);
 		vm.startPrank(alice);
 		expectedFee = liquidRon.getDepositFee(_depositAmount);
-		uint256 shares = liquidRon.deposit{value:_depositAmount}();
+		uint256 shares = liquidRon.deposit{value:_depositAmount}(alice);
 		uint256 feeInAssets = expectedFee * expectedSharesWithoutFee / _depositAmount;
 		assertEq(feeInAssets, expectedSharesWithoutFee - shares);
 		assertEq(expectedShares, shares);
@@ -288,7 +288,7 @@ contract LiquidRonTest is StdCheats,  Test {
 	function test_fee_removed_after_threshold(uint256 _depositCount) public {
 		_depositCount = bound(_depositCount, 1, 20);
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -316,7 +316,7 @@ contract LiquidRonTest is StdCheats,  Test {
 
 		uint256 currentPeriod = mockValidatorSet.currentPeriod();
 		for (uint256 i = 0; i < _depositCount + 2; i++) {
-			liquidRon.deposit{value: depositAmount}();
+			liquidRon.deposit{value: depositAmount}(address(this));
 			tracker = liquidRon.loggedFees(currentPeriod);
 		}
 		console.log("tracker", tracker);
@@ -333,7 +333,7 @@ contract LiquidRonTest is StdCheats,  Test {
 
 	function test_fee_decrease_staked_balance() public {
 		uint256 _amount = 1500000 ether;
-		liquidRon.deposit{value: _amount}();
+		liquidRon.deposit{value: _amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {

@@ -69,7 +69,7 @@ contract LiquidRonTest is Test {
 	function test_pause_modifer() public {
 		liquidRon.pause();
 		vm.expectRevert(Pausable.ErrPaused.selector);
-		liquidRon.deposit{value:1000 ether}();
+		liquidRon.deposit{value:1000 ether}(address(this));
 	}
 
 	function test_admin_set_fee_recipient(address _user) public {
@@ -99,7 +99,7 @@ contract LiquidRonTest is Test {
 		vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, consensusAddrs[1]));
 		vm.prank(consensusAddrs[1]);
 		liquidRon.setOperatorFee(_amount);
-		vm.expectRevert("LiquidRon: Invalid fee");
+		vm.expectRevert(LiquidRon.ErrInvalidFee.selector);
 		liquidRon.setOperatorFee(2000);
 	}
 
@@ -118,7 +118,7 @@ contract LiquidRonTest is Test {
 
 	function test_admin_fetch_operator_fee(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
-		liquidRon.deposit{value:_amount}();
+		liquidRon.deposit{value:_amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
@@ -145,7 +145,7 @@ contract LiquidRonTest is Test {
 
 	function test_revert_fetch_fee_non_receiver(uint88 _amount) public {
 		vm.assume(_amount >= 0.01 ether);
-		liquidRon.deposit{value:_amount}();
+		liquidRon.deposit{value:_amount}(address(this));
 		uint256 delegateAmount = _amount / 15;
 		uint256[] memory amounts = new uint256[](5);
 		for (uint256 i = 0; i < 5; i++) {
