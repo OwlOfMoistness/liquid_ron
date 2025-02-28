@@ -20,6 +20,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
 
     address public immutable vault;
     address public immutable roninStaking;
+    mapping(address => uint256) public lastDelegatingTimestamp;
 
     constructor(address _roninStaking, address _wron, address _vault) RonHelper(_wron) {
         vault = _vault;
@@ -50,6 +51,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
         address[] calldata _consensusAddrs,
         address _consensusAddrDst
     ) external onlyVault returns (uint256) {
+        lastDelegatingTimestamp[_consensusAddrDst] = block.timestamp;
         uint256 claimableAmount = IRoninValidator(roninStaking).delegateRewards(_consensusAddrs, _consensusAddrDst);
         return claimableAmount;
     }
@@ -59,6 +61,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @param _consensusAddrs The consensus addresses to delegate to
     function delegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault {
         for (uint256 i = 0; i < _amounts.length; i++) {
+            lastDelegatingTimestamp[_consensusAddrs[i]] = block.timestamp;
             IRoninValidator(roninStaking).delegate{value: _amounts[i]}(_consensusAddrs[i]);
         }
     }
@@ -74,6 +77,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     ) external onlyVault {
         for (uint256 i = 0; i < _amounts.length; i++) {
             if (_consensusAddrsSrc[i] == _consensusAddrsDst[i]) revert ErrSameAddress();
+            lastDelegatingTimestamp[_consensusAddrsDst[i]] = block.timestamp;
             IRoninValidator(roninStaking).redelegate(_consensusAddrsSrc[i], _consensusAddrsDst[i], _amounts[i]);
         }
     }
