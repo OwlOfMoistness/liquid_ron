@@ -16,9 +16,11 @@ import {RonHelper} from "./RonHelper.sol";
 /// @author OwlOfMoistness
 contract LiquidProxy is RonHelper, ILiquidProxy {
     error ErrNotVault();
+    error ErrSameAddress();
 
-    address public vault;
-    address public roninStaking;
+    address public immutable vault;
+    address public immutable roninStaking;
+    mapping(address => uint256) public lastDelegatingTimestamp;
 
     constructor(address _roninStaking, address _wron, address _vault) RonHelper(_wron) {
         vault = _vault;
@@ -35,9 +37,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @param _consensusAddrs The consensus addresses to harvest rewards from
     /// @return claimedAmount The amount of RON claimed from the staking contract
     function harvest(address[] calldata _consensusAddrs) external onlyVault returns (uint256) {
-        for (uint256 i = 0; i < _consensusAddrs.length; i++) {
-            IRoninValidator(roninStaking).claimRewards(_consensusAddrs);
-        }
+        IRoninValidator(roninStaking).claimRewards(_consensusAddrs);
         uint256 claimedAmount = address(this).balance;
         _depositRONTo(vault, claimedAmount);
         return claimedAmount;
@@ -51,6 +51,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
         address[] calldata _consensusAddrs,
         address _consensusAddrDst
     ) external onlyVault returns (uint256) {
+        lastDelegatingTimestamp[_consensusAddrDst] = block.timestamp;
         uint256 claimableAmount = IRoninValidator(roninStaking).delegateRewards(_consensusAddrs, _consensusAddrDst);
         return claimableAmount;
     }
@@ -60,6 +61,7 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @param _consensusAddrs The consensus addresses to delegate to
     function delegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault {
         for (uint256 i = 0; i < _amounts.length; i++) {
+            lastDelegatingTimestamp[_consensusAddrs[i]] = block.timestamp;
             IRoninValidator(roninStaking).delegate{value: _amounts[i]}(_consensusAddrs[i]);
         }
     }
@@ -74,6 +76,8 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
         address[] calldata _consensusAddrsDst
     ) external onlyVault {
         for (uint256 i = 0; i < _amounts.length; i++) {
+            if (_consensusAddrsSrc[i] == _consensusAddrsDst[i]) revert ErrSameAddress();
+            lastDelegatingTimestamp[_consensusAddrsDst[i]] = block.timestamp;
             IRoninValidator(roninStaking).redelegate(_consensusAddrsSrc[i], _consensusAddrsDst[i], _amounts[i]);
         }
     }
@@ -81,13 +85,14 @@ contract LiquidProxy is RonHelper, ILiquidProxy {
     /// @dev Undelegate a specific amount of RON from a validator
     /// @param _amounts The amounts to undelegate
     /// @param _consensusAddrs The consensus addresses to undelegate from
-    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault {
+    function undelegateAmount(uint256[] calldata _amounts, address[] calldata _consensusAddrs) external onlyVault returns (uint256) {
         uint256 totalUndelegated;
         for (uint256 i = 0; i < _amounts.length; i++) {
             totalUndelegated += _amounts[i];
         }
         IRoninValidator(roninStaking).bulkUndelegate(_consensusAddrs, _amounts);
         _depositRONTo(vault, totalUndelegated);
+        return totalUndelegated;
     }
 
     /// @dev Receive function remains open as method to calculate total ron in contract does not use contract balance.

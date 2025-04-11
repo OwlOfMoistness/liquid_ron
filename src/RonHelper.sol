@@ -37,7 +37,7 @@ abstract contract RonHelper {
     /// @param amount The amount of WRON to withdraw
     function _withdrawRONTo(address to, uint256 amount) internal {
         IWRON(wron).withdraw(amount);
-        (bool success, ) = to.call{value: amount}("");
+        (bool success, ) = payable(to).call{value: amount}("");
         if (!success) revert ErrWithdrawFailed();
     }
 }
