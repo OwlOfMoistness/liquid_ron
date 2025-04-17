@@ -113,6 +113,25 @@ contract LiquidRonCompLiquidator {
 	}
 
 	/**
+	 * @notice Initiates a flash loan from a Katana V3 pool
+	 * @param _pool Address of the pool to flash loan from
+	 * @param _poolKey Pool key containing token addresses and fee
+	 * @param data Encoded data containing liquidation parameters
+	 */
+	function _initiateKatanaV3Flash(address _pool, PoolKey memory _poolKey, Data memory data) internal {
+		uint256 amount0;
+		uint256 amount1;
+		(bool zeroOrOne, uint256 amount) = _checkPoolHasBaseToken(_pool, _poolKey, WRON, data.askAmount - data.amountRaised);
+		data.amountRaised += amount;
+		data.amounts[data.index] = amount;
+		if (zeroOrOne)
+			amount0 = amount;
+		else
+			amount1 = amount;
+		IUniPoolV3(_pool).flash(address(this), amount0, amount1, abi.encode(data));
+	}
+
+	/**
 	 * @notice Checks if a pool has the required base token and returns available balance
 	 * @param _pool Address of the Katana V3 pool
 	 * @param _poolKey Pool key containing token addresses and fee
@@ -141,25 +160,6 @@ contract LiquidRonCompLiquidator {
 	}
 
 	/**
-	 * @notice Initiates a flash loan from a Katana V3 pool
-	 * @param _pool Address of the pool to flash loan from
-	 * @param _poolKey Pool key containing token addresses and fee
-	 * @param data Encoded data containing liquidation parameters
-	 */
-	function _initiateKatanaV3Flash(address _pool, PoolKey memory _poolKey, Data memory data) internal {
-		uint256 amount0;
-		uint256 amount1;
-		(bool zeroOrOne, uint256 amount) = _checkPoolHasBaseToken(_pool, _poolKey, WRON, data.askAmount - data.amountRaised);
-		data.amountRaised += amount;
-		data.amounts[data.index] = amount;
-		if (zeroOrOne)
-			amount0 = amount;
-		else
-			amount1 = amount;
-		IUniPoolV3(_pool).flash(address(this), amount0, amount1, abi.encode(data));
-	}
-
-	/**
 	 * @notice Proceeds with discount acquisition after obtaining required funds
 	 * Once RON redemption is complete, repay the flash loans and send the remaining WRON to the sender
 	 * @param data Encoded data containing liquidation parameters
@@ -167,7 +167,6 @@ contract LiquidRonCompLiquidator {
 	function _proceedDiscountAcquisition(Data memory data) internal {
 		IComet comet = IComet(data.comet);
 
-		Iwron(WRON).deposit{value: data.askAmount}();
 		IERC20(WRON).approve(address(comet), data.askAmount);
 		comet.buyCollateral(LRON, 0, data.askAmount, address(this));
 		_redeemLRON(IERC20(LRON).balanceOf(address(this)));
