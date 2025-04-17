@@ -16,3 +16,6 @@ docs/
 *.info
 broadcast
 run.sh
+data_fetcher
+brownie
+*.s.sol
